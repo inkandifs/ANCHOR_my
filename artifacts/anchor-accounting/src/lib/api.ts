@@ -2,6 +2,7 @@ const API_BASE = "/api";
 
 export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API_BASE}${endpoint}`, {
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...(options.headers || {})
@@ -9,15 +10,24 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
     ...options
   });
   if (!res.ok) {
-    throw new Error(`API Error: ${res.status} ${res.statusText}`);
+    let errMessage = `API Error: ${res.status} ${res.statusText}`;
+    try {
+      const data = await res.json();
+      if (data && data.message) {
+        errMessage = data.message;
+      }
+    } catch {}
+    throw new Error(errMessage);
   }
   return res.json();
 }
 
 export const api = {
   // Auth
-  login: (loginId: string) => apiFetch<{ success: boolean; user: any }>("/auth/login", { method: "POST", body: JSON.stringify({ loginId }) }),
+  login: (loginId: string, password?: string) => apiFetch<{ success: boolean; user: any }>("/auth/login", { method: "POST", body: JSON.stringify({ loginId, password }) }),
   signup: (userData: any) => apiFetch<{ success: boolean; user: any }>("/auth/signup", { method: "POST", body: JSON.stringify(userData) }),
+  getMe: () => apiFetch<{ success: boolean; user: any }>("/auth/me"),
+  logout: () => apiFetch<{ success: boolean }>("/auth/logout", { method: "POST" }),
   
   // Contacts
   getContacts: () => apiFetch<{ success: boolean; contacts: any[] }>("/contacts"),

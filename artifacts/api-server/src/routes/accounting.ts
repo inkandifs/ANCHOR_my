@@ -1,109 +1,149 @@
 import { Router, type IRouter } from "express";
-import { memoryStore, saveStore } from "../lib/store";
+import { eq, desc } from "drizzle-orm";
+import { db, accountsTable, journalsTable, journalEntriesTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
-router.get("/chart-of-accounts", (_req, res) => {
-  res.json({ success: true, accounts: memoryStore.accounts });
-});
-
-router.post("/chart-of-accounts", (req, res) => {
-  const { code, name, type, balance } = req.body;
-  const newAccount = {
-    id: memoryStore.accounts.length ? Math.max(...memoryStore.accounts.map((a: any) => a.id)) + 1 : 1,
-    code: code || `ACC-${memoryStore.accounts.length + 100}`,
-    name: name || "New Account",
-    type: type || "Asset",
-    balance: String(balance || "0.00")
-  };
-  memoryStore.accounts.push(newAccount);
-  saveStore();
-  res.status(201).json({ success: true, account: newAccount });
-});
-
-router.put("/chart-of-accounts/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const index = memoryStore.accounts.findIndex((a: any) => a.id === id);
-  if (index !== -1) {
-    memoryStore.accounts[index] = { ...memoryStore.accounts[index], ...req.body };
-    saveStore();
-    return res.json({ success: true, account: memoryStore.accounts[index] });
+// Chart of Accounts
+router.get("/chart-of-accounts", async (_req, res) => {
+  try {
+    const accounts = await db.select().from(accountsTable).orderBy(desc(accountsTable.id));
+    return res.json({ success: true, accounts });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: "Error fetching accounts" });
   }
-  return res.status(404).json({ success: false, message: "Account not found" });
 });
 
-router.delete("/chart-of-accounts/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const index = memoryStore.accounts.findIndex((a: any) => a.id === id);
-  if (index !== -1) {
-    memoryStore.accounts.splice(index, 1);
-    saveStore();
-    return res.json({ success: true, message: "Account deleted" });
+router.post("/chart-of-accounts", async (req, res) => {
+  try {
+    const { code, name, type, balance } = req.body;
+    if (!name) return res.status(400).json({ success: false, message: "Account name is required" });
+    const countRes = await db.select().from(accountsTable);
+    const accountCode = code || `ACC-${countRes.length + 100}`;
+    const [account] = await db
+      .insert(accountsTable)
+      .values({
+        code: accountCode,
+        name,
+        type: type || "Asset",
+        balance: String(balance || "0.00")
+      })
+      .returning();
+    return res.status(201).json({ success: true, account });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: "Error creating account" });
   }
-  return res.status(404).json({ success: false, message: "Account not found" });
 });
 
-router.get("/journals", (_req, res) => {
-  res.json({ success: true, journals: memoryStore.journals });
-});
-
-router.post("/journals", (req, res) => {
-  const { code, name, type } = req.body;
-  const newJournal = {
-    id: memoryStore.journals.length ? Math.max(...memoryStore.journals.map((j: any) => j.id)) + 1 : 1,
-    code: code || "MISC",
-    name: name || "Miscellaneous Journal",
-    type: type || "General"
-  };
-  memoryStore.journals.push(newJournal);
-  saveStore();
-  res.status(201).json({ success: true, journal: newJournal });
-});
-
-router.delete("/journals/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const index = memoryStore.journals.findIndex((j: any) => j.id === id);
-  if (index !== -1) {
-    memoryStore.journals.splice(index, 1);
-    saveStore();
-    return res.json({ success: true, message: "Journal deleted" });
+router.put("/chart-of-accounts/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const [updated] = await db.update(accountsTable).set(req.body).where(eq(accountsTable.id, id)).returning();
+    if (updated) return res.json({ success: true, account: updated });
+    return res.status(404).json({ success: false, message: "Account not found" });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: "Error updating account" });
   }
-  return res.status(404).json({ success: false, message: "Journal not found" });
 });
 
-router.get("/journal-entries", (_req, res) => {
-  res.json({ success: true, journalEntries: memoryStore.journalEntries });
-});
-
-router.post("/journal-entries", (req, res) => {
-  const { journalName, date, reference, partner, debitTotal, creditTotal, status, lines } = req.body;
-  const count = memoryStore.journalEntries.length + 49;
-  const newEntry = {
-    id: memoryStore.journalEntries.length ? Math.max(...memoryStore.journalEntries.map((e: any) => e.id)) + 1 : 1,
-    entryNo: `JRN/2026/${String(count).padStart(4, "0")}`,
-    journalName: journalName || "General Journal",
-    date: date || new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
-    reference: reference || "",
-    partner: partner || "",
-    debitTotal: String(debitTotal || "0.00"),
-    creditTotal: String(creditTotal || "0.00"),
-    status: status || "Posted",
-    lines: lines || []
-  };
-  memoryStore.journalEntries.unshift(newEntry);
-  saveStore();
-  res.status(201).json({ success: true, journalEntry: newEntry });
-});
-
-router.delete("/journal-entries/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const index = memoryStore.journalEntries.findIndex((e: any) => e.id === id);
-  if (index !== -1) {
-    memoryStore.journalEntries.splice(index, 1);
-    saveStore();
-    return res.json({ success: true, message: "Journal entry deleted" });
+router.delete("/chart-of-accounts/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const [deleted] = await db.delete(accountsTable).where(eq(accountsTable.id, id)).returning();
+    if (deleted) return res.json({ success: true, message: "Account deleted" });
+    return res.status(404).json({ success: false, message: "Account not found" });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: "Error deleting account" });
   }
-  return res.status(404).json({ success: false, message: "Journal entry not found" });
+});
+
+// Journals
+router.get("/journals", async (_req, res) => {
+  try {
+    const journals = await db.select().from(journalsTable).orderBy(desc(journalsTable.id));
+    return res.json({ success: true, journals });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: "Error fetching journals" });
+  }
+});
+
+router.post("/journals", async (req, res) => {
+  try {
+    const { code, name, type } = req.body;
+    if (!name) return res.status(400).json({ success: false, message: "Journal name is required" });
+    const countRes = await db.select().from(journalsTable);
+    const journalCode = code || `J-0${countRes.length + 1}`;
+    const [journal] = await db
+      .insert(journalsTable)
+      .values({
+        code: journalCode,
+        name,
+        type: type || "General"
+      })
+      .returning();
+    return res.status(201).json({ success: true, journal });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: "Error creating journal" });
+  }
+});
+
+router.delete("/journals/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const [deleted] = await db.delete(journalsTable).where(eq(journalsTable.id, id)).returning();
+    if (deleted) return res.json({ success: true, message: "Journal deleted" });
+    return res.status(404).json({ success: false, message: "Journal not found" });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: "Error deleting journal" });
+  }
+});
+
+// Journal Entries
+router.get("/journal-entries", async (_req, res) => {
+  try {
+    const journalEntries = await db.select().from(journalEntriesTable).orderBy(desc(journalEntriesTable.id));
+    return res.json({ success: true, journalEntries });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: "Error fetching journal entries" });
+  }
+});
+
+router.post("/journal-entries", async (req, res) => {
+  try {
+    const { journalName, date, reference, partner, debitTotal, creditTotal, status, lines } = req.body;
+    const countRes = await db.select().from(journalEntriesTable);
+    const count = countRes.length + 21;
+    const entryNo = `JE-2026-0${count}`;
+
+    const [journalEntry] = await db
+      .insert(journalEntriesTable)
+      .values({
+        entryNo,
+        journalName: journalName || "General Journal",
+        date: date || new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
+        reference: reference || "",
+        partner: partner || "",
+        debitTotal: String(debitTotal || "0.00"),
+        creditTotal: String(creditTotal || "0.00"),
+        status: status || "Posted",
+        lines: lines || null
+      })
+      .returning();
+    return res.status(201).json({ success: true, journalEntry });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: "Error creating journal entry" });
+  }
+});
+
+router.delete("/journal-entries/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const [deleted] = await db.delete(journalEntriesTable).where(eq(journalEntriesTable.id, id)).returning();
+    if (deleted) return res.json({ success: true, message: "Journal entry deleted" });
+    return res.status(404).json({ success: false, message: "Journal entry not found" });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: "Error deleting journal entry" });
+  }
 });
 
 export default router;

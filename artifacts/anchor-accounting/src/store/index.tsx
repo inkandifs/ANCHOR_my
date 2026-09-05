@@ -283,9 +283,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     let created: any;
     try {
       const res = await api.createPurchaseOrder({
+        vendorId: data.vendorId,
         vendorName: data.partner || data.vendorName,
         totalAmount: data.rawTotal || data.totalAmount || '0.00',
-        status: data.status || 'Confirmed'
+        status: data.status || 'Confirmed',
+        items: data.items
       });
       created = {
         ...res.purchaseOrder,
@@ -293,7 +295,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         partner: res.purchaseOrder.vendorName,
         date: res.purchaseOrder.orderDate || new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
         total: `$${parseFloat(res.purchaseOrder.totalAmount || '0').toFixed(2)}`,
-        items: data.items || 'Standard Purchase Order'
+        items: res.purchaseOrder.items || data.items || 'Standard Purchase Order'
       };
     } catch {
       const count = purchaseOrders.length + 43;
@@ -358,9 +360,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     let created: any;
     try {
       const res = await api.createSalesOrder({
+        customerId: data.customerId,
         customerName: data.partner || data.customerName,
         totalAmount: data.rawTotal || data.totalAmount || '0.00',
-        status: data.status || 'Confirmed'
+        status: data.status || 'Confirmed',
+        items: data.items
       });
       created = {
         ...res.salesOrder,
@@ -368,7 +372,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         partner: res.salesOrder.customerName,
         date: res.salesOrder.orderDate || new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
         total: `$${parseFloat(res.salesOrder.totalAmount || '0').toFixed(2)}`,
-        items: data.items || 'Standard Sales Order'
+        items: res.salesOrder.items || data.items || 'Standard Sales Order'
       };
     } catch {
       const count = salesOrders.length + 39;

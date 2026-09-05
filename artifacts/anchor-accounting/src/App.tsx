@@ -433,12 +433,68 @@ function AuthLayout({ children, aside }: { children: ReactNode; aside: ReactNode
   return <div className="auth-page noise"><div className="auth-aside"><Link href="/" className="brand-lockup brand-dark"><Logo /><span>ANCHOR</span></Link><div className="auth-quote"><span className="eyebrow">ANCHOR / PRIVATE WORKSPACE</span><h2>Good records make<br /><i>good decisions.</i></h2><p>Tools for the people who keep a business moving.</p></div><div className="auth-aside-foot">A quiet place to run the books <span>↗</span></div></div><main className="auth-main"><div className="auth-card">{aside}{children}</div></main></div>;
 }
 function Login({ role, setRole }: { role: Role; setRole: (r: Role) => void }) {
-  const [, setLocation] = useLocation(); const [error, setError] = useState(false); const [login, setLogin] = useState('');
-  return <AuthLayout aside={<div className="auth-logo"><Logo large /></div>}><div className="eyebrow">WELCOME BACK</div><h1>Sign in to ANCHOR</h1><p className="auth-sub">Your workspace is ready when you are.</p>{error && <div className="error-banner"><X size={16} /><span><b>Invalid Login Id or Password</b><small>Check your details and try again.</small></span></div>}<div className="sso-buttons"><Button variant="secondary" className="w-full" testId="button-sso-google">Continue with Google</Button><Button variant="secondary" className="w-full" testId="button-sso-microsoft">Continue with Microsoft</Button></div><div className="auth-divider"><span>or sign in with email</span></div><form className="auth-form" onSubmit={e => { e.preventDefault(); if (login) { setLocation(role === 'User' ? '/portal' : '/dashboard'); } else setError(true); }}><Field label="Login ID" placeholder="mara.chen" value={login} onChange={setLogin} /><Field label="Password" placeholder="Enter your password" type="password" /><div className="role-selector"><span>Role</span><div>{(['Admin', 'Accountant', 'User'] as Role[]).map(r => <button type="button" key={r} className={role === r ? 'selected' : ''} onClick={() => setRole(r)} data-testid={`button-role-${r.toLowerCase()}`}>{r}</button>)}</div></div><div className="form-row-between"><label className="check-label"><input type="checkbox" /> Keep me signed in</label><Link href="/forgot-password" className="text-link" data-testid="link-forgot-password">Forgot password?</Link></div><Button type="submit" className="w-full" testId="button-login">Sign in <ArrowRight size={15} /></Button></form><p className="auth-switch">New to ANCHOR? <Link href="/signup" className="text-link" data-testid="link-signup">Create a workspace</Link></p><div className="auth-security"><ShieldCheck size={14} /> Secure workspace · Role-based access</div></AuthLayout>;
+  const [, setLocation] = useLocation();
+  const [loginId, setLoginId] = useState('');
+  const [password, setPassword] = useState('');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    try {
+      const res = await api.login(loginId || 'user001', password || 'Anchor@001');
+      if (res.success && res.user) {
+        const userRole = (res.user.role as Role) || 'Admin';
+        setRole(userRole);
+        setLocation(userRole === 'User' ? '/portal' : '/dashboard');
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Invalid Login ID or Password');
+    }
+  };
+
+  return <AuthLayout aside={<div className="auth-logo"><Logo large /></div>}><div className="eyebrow">WELCOME BACK</div><h1>Sign in to ANCHOR</h1><p className="auth-sub">Your workspace is ready when you are.</p>{errorMsg && <div className="error-banner"><X size={16} /><span><b>Authentication Failed</b><small>{errorMsg}</small></span></div>}<div className="sso-buttons"><Button variant="secondary" className="w-full" testId="button-sso-google">Continue with Google</Button><Button variant="secondary" className="w-full" testId="button-sso-microsoft">Continue with Microsoft</Button></div><div className="auth-divider"><span>or sign in with credentials</span></div><form className="auth-form" onSubmit={handleSubmit}><Field label="Login ID or Email" placeholder="user001" value={loginId} onChange={setLoginId} /><Field label="Password" placeholder="••••••••" type="password" value={password} onChange={setPassword} /><div className="form-row-between"><label className="check-label"><input type="checkbox" /> Keep me signed in</label><Link href="/forgot-password" className="text-link" data-testid="link-forgot-password">Forgot password?</Link></div><Button type="submit" className="w-full" testId="button-login">Sign in <ArrowRight size={15} /></Button></form><p className="auth-switch">New to ANCHOR? <Link href="/signup" className="text-link" data-testid="link-signup">Create a workspace</Link></p><div className="auth-security"><ShieldCheck size={14} /> Secure workspace · Role-based access</div></AuthLayout>;
 }
+
 function Signup({ role, setRole }: { role: Role; setRole: (r: Role) => void }) {
-  const [, setLocation] = useLocation(); const [name, setName] = useState(''); const [mismatch, setMismatch] = useState(false); const [pwd, setPwd] = useState('');
-  return <AuthLayout aside={<div className="auth-logo"><Logo large /></div>}><div className="eyebrow">CREATE AN ACCOUNT</div><h1>Set your anchor.</h1><p className="auth-sub">Choose your role to enter the workspace.</p><form className="auth-form signup-form" onSubmit={e => { e.preventDefault(); setLocation(role === 'User' ? '/portal' : '/dashboard'); }}><div className="two-fields"><Field label="Full Name" placeholder="Mara Chen" value={name} onChange={setName} /><Field label="Company Name" placeholder="Hearth & Form Studio" /></div><div className="two-fields"><Field label="Login ID" placeholder="mara.chen" helper="6–12 characters · must be unique" /><Field label="Email" placeholder="mara@hearthandform.co" helper="Must not be a duplicate" /></div><Field label="Billing Address" placeholder="123 Main St, Suite 400, New York, NY 10001" /><div className="two-fields"><Field label="Password" placeholder="••••••••" type="password" value={pwd} onChange={setPwd} helper="8+ chars · lowercase · uppercase · special" /><Field label="Re-enter Password" placeholder="••••••••" type="password" error={mismatch ? 'Passwords do not match' : undefined} /></div>{pwd.length > 0 && <div className="password-strength"><div className={`strength-bar ${pwd.length > 8 ? 'strong' : pwd.length > 4 ? 'medium' : 'weak'}`}></div><small>{pwd.length > 8 ? 'Strong password' : pwd.length > 4 ? 'Moderate password' : 'Weak password'}</small></div>}<div className="role-selector"><span>Role</span><div>{(['Admin', 'Accountant', 'User'] as Role[]).map(r => <button type="button" key={r} className={role === r ? 'selected' : ''} onClick={() => setRole(r)} data-testid={`button-role-${r.toLowerCase()}`}>{r}</button>)}</div><small>Select your workspace role.</small></div><Button type="submit" className="w-full" testId="button-create-account">Create account <ArrowRight size={15} /></Button></form><p className="auth-switch">Already have access? <Link href="/login" className="text-link" data-testid="link-login">Sign in</Link></p></AuthLayout>;
+  const [, setLocation] = useLocation();
+  const [name, setName] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [loginId, setLoginId] = useState('');
+  const [email, setEmail] = useState('');
+  const [address, setAddress] = useState('');
+  const [pwd, setPwd] = useState('');
+  const [rePwd, setRePwd] = useState('');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    if (pwd !== rePwd) {
+      setErrorMsg('Passwords do not match');
+      return;
+    }
+    try {
+      const res = await api.signup({
+        name: name || 'New Member',
+        loginId: loginId || `user_${Date.now()}`,
+        email: email || `user_${Date.now()}@anchor.local`,
+        password: pwd || 'Anchor@001',
+        role: role || 'User',
+        companyName: companyName || 'Hearth & Form Studio',
+        billingAddress: address || ''
+      });
+      if (res.success && res.user) {
+        const userRole = (res.user.role as Role) || role || 'User';
+        setRole(userRole);
+        setLocation(userRole === 'User' ? '/portal' : '/dashboard');
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Registration failed');
+    }
+  };
+
+  return <AuthLayout aside={<div className="auth-logo"><Logo large /></div>}><div className="eyebrow">CREATE AN ACCOUNT</div><h1>Set your anchor.</h1><p className="auth-sub">Enter your details to create a workspace account.</p>{errorMsg && <div className="error-banner"><X size={16} /><span><b>Registration Error</b><small>{errorMsg}</small></span></div>}<form className="auth-form signup-form" onSubmit={handleSubmit}><div className="two-fields"><Field label="Full Name" placeholder="Mara Chen" value={name} onChange={setName} /><Field label="Company Name" placeholder="Hearth & Form Studio" value={companyName} onChange={setCompanyName} /></div><div className="two-fields"><Field label="Login ID" placeholder="mara.chen" value={loginId} onChange={setLoginId} helper="Must be unique" /><Field label="Email" placeholder="mara@hearthandform.co" value={email} onChange={setEmail} helper="Must be unique" /></div><Field label="Billing Address" placeholder="123 Main St, New York, NY" value={address} onChange={setAddress} /><div className="two-fields"><Field label="Password" placeholder="••••••••" type="password" value={pwd} onChange={setPwd} helper="8+ chars" /><Field label="Re-enter Password" placeholder="••••••••" type="password" value={rePwd} onChange={setRePwd} /></div><Button type="submit" className="w-full" testId="button-create-account">Create account <ArrowRight size={15} /></Button></form><p className="auth-switch">Already have access? <Link href="/login" className="text-link" data-testid="link-login">Sign in</Link></p></AuthLayout>;
 }
 function ForgotPassword() { const [sent, setSent] = useState(false); return <AuthLayout aside={<div className="auth-logo"><Logo large /></div>}><div className="eyebrow">ACCOUNT RECOVERY</div><h1>Reset your password.</h1><p className="auth-sub">We will send a secure reset link to the address on your workspace.</p>{sent ? <div className="success-card"><Check size={18} /><b>Check your inbox.</b><p>If that address is on file, a reset link is on its way.</p></div> : <form className="auth-form" onSubmit={e => { e.preventDefault(); setSent(true); }}><Field label="Email address" placeholder="you@company.com" /><Button type="submit" className="w-full" testId="button-send-reset">Send reset link <ArrowRight size={15} /></Button></form>}<p className="auth-switch"><Link href="/login" className="text-link" data-testid="link-back-login"><ArrowLeft size={14} /> Back to sign in</Link></p></AuthLayout>; }
 
@@ -646,6 +702,7 @@ function DetailForm({ mode }: { mode: 'purchase' | 'sales' | 'journal' }) {
   const [step] = useState('Draft');
   const [balanced, setBalanced] = useState(true);
   const [partner, setPartner] = useState('');
+  const [partnerId, setPartnerId] = useState<number | null>(null);
   const [dateVal, setDateVal] = useState('Mar 24, 2026');
   const [journalVal, setJournalVal] = useState('General Journal');
   const [refVal, setRefVal] = useState(mode === 'journal' ? 'March Office & Retainer' : '');
@@ -664,7 +721,8 @@ function DetailForm({ mode }: { mode: 'purchase' | 'sales' | 'journal' }) {
   const partnerOptions = (matchingContacts.length > 0 ? matchingContacts : contacts).map(c => ({
     label: c.name,
     value: c.name,
-    sub: `${c.type || 'Contact'} · ${c.city || 'Local'}`
+    sub: `${c.type || 'Contact'} · ${c.city || 'Local'}`,
+    data: { id: c.id }
   }));
 
   const productOptions = products.map(p => {
@@ -740,6 +798,8 @@ function DetailForm({ mode }: { mode: 'purchase' | 'sales' | 'journal' }) {
     try {
       if (mode === 'purchase') {
         await addPurchaseOrder({
+          vendorId: partnerId,
+          vendorName: partner,
           partner,
           rawTotal: computedTotalNum.toFixed(2),
           total: formattedTotal,
@@ -749,6 +809,8 @@ function DetailForm({ mode }: { mode: 'purchase' | 'sales' | 'journal' }) {
         setLocation('/purchase-orders');
       } else if (mode === 'sales') {
         await addSalesOrder({
+          customerId: partnerId,
+          customerName: partner,
           partner,
           rawTotal: computedTotalNum.toFixed(2),
           total: formattedTotal,
@@ -813,7 +875,10 @@ function DetailForm({ mode }: { mode: 'purchase' | 'sales' | 'journal' }) {
                   placeholder={isPurchase ? 'Search or select vendor...' : 'Search or select customer...'}
                   options={partnerOptions}
                   value={partner}
-                  onChange={(val) => setPartner(val)}
+                  onChange={(val, selectedData) => {
+                    setPartner(val);
+                    setPartnerId(selectedData?.id ?? null);
+                  }}
                   testId={`select-${isPurchase ? 'vendor' : 'customer'}`}
                 />
               </div>

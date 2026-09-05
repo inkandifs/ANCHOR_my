@@ -3,13 +3,17 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
+    "db:start": "pnpm --filter @workspace/scripts run db:start",
+    "db:push": "pnpm --filter @workspace/db run push",
+    "seed": "pnpm --filter @workspace/scripts run seed",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
   },
   "private": true,
   "dependencies": {
-    "@replit/connectors-sdk": "^0.4.1"
+    "@replit/connectors-sdk": "^0.4.1",
+    "embedded-postgres": "18.4.0-beta.17"
   },
   "devDependencies": {
     "prettier": "^3.9.6",

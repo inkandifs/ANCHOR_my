@@ -1,50 +1,81 @@
 import { Router, type IRouter } from "express";
-import { memoryStore, saveStore } from "../lib/store";
+import { eq, desc } from "drizzle-orm";
+import { db, purchaseOrdersTable, vendorBillsTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
-router.get("/purchase-orders", (_req, res) => {
-  res.json({ success: true, purchaseOrders: memoryStore.purchaseOrders });
+router.get("/purchase-orders", async (_req, res) => {
+  try {
+    const purchaseOrders = await db.select().from(purchaseOrdersTable).orderBy(desc(purchaseOrdersTable.id));
+    return res.json({ success: true, purchaseOrders });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: "Error fetching purchase orders" });
+  }
 });
 
-router.post("/purchase-orders", (req, res) => {
-  const { vendorName, orderDate, expectedDate, totalAmount, status } = req.body;
-  const count = memoryStore.purchaseOrders.length + 19;
-  const newOrder = {
-    id: memoryStore.purchaseOrders.length ? Math.max(...memoryStore.purchaseOrders.map((o: any) => o.id)) + 1 : 1,
-    orderNo: `PO-${String(count).padStart(4, "0")}`,
-    vendorName: vendorName || "Vendor",
-    orderDate: orderDate || new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
-    expectedDate: expectedDate || "Net 30",
-    totalAmount: String(totalAmount || "0.00"),
-    status: status || "Draft"
-  };
-  memoryStore.purchaseOrders.unshift(newOrder);
-  saveStore();
-  res.status(201).json({ success: true, purchaseOrder: newOrder });
+router.post("/purchase-orders", async (req, res) => {
+  try {
+    const { vendorId, vendorName, orderDate, expectedDate, totalAmount, status, items } = req.body;
+    const countRes = await db.select().from(purchaseOrdersTable);
+    const count = countRes.length + 44;
+    const orderNo = `P000${count}`;
+
+    const [purchaseOrder] = await db
+      .insert(purchaseOrdersTable)
+      .values({
+        orderNo,
+        vendorId: vendorId ? Number(vendorId) : null,
+        vendorName: vendorName || "Vendor",
+        orderDate: orderDate || new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
+        expectedDate: expectedDate || "Net 30",
+        totalAmount: String(totalAmount || "0.00"),
+        status: status || "Confirmed",
+        items: items || null
+      })
+      .returning();
+
+    return res.status(201).json({ success: true, purchaseOrder });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: "Error creating purchase order" });
+  }
 });
 
-router.get("/vendor-bills", (_req, res) => {
-  res.json({ success: true, vendorBills: memoryStore.vendorBills });
+router.get("/vendor-bills", async (_req, res) => {
+  try {
+    const vendorBills = await db.select().from(vendorBillsTable).orderBy(desc(vendorBillsTable.id));
+    return res.json({ success: true, vendorBills });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: "Error fetching vendor bills" });
+  }
 });
 
-router.post("/vendor-bills", (req, res) => {
-  const { vendorName, date, dueDate, refNo, totalAmount, status } = req.body;
-  const count = memoryStore.vendorBills.length + 5;
-  const newBill = {
-    id: memoryStore.vendorBills.length ? Math.max(...memoryStore.vendorBills.map((b: any) => b.id)) + 1 : 1,
-    billId: `BILL/2026/${String(count).padStart(4, "0")}`,
-    refNo: refNo || `REF-${count}`,
-    vendorName: vendorName || "Vendor",
-    date: date || new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
-    dueDate: dueDate || "Net 30",
-    totalAmount: String(totalAmount || "0.00"),
-    paidAmount: "0.00",
-    status: status || "Not Paid"
-  };
-  memoryStore.vendorBills.unshift(newBill);
-  saveStore();
-  res.status(201).json({ success: true, vendorBill: newBill });
+router.post("/vendor-bills", async (req, res) => {
+  try {
+    const { vendorId, vendorName, date, dueDate, refNo, totalAmount, status, items } = req.body;
+    const countRes = await db.select().from(vendorBillsTable);
+    const count = countRes.length + 9;
+    const billId = `Bill/2026/000${count}`;
+
+    const [vendorBill] = await db
+      .insert(vendorBillsTable)
+      .values({
+        billId,
+        refNo: refNo || `VB-26-0${count}`,
+        vendorId: vendorId ? Number(vendorId) : null,
+        vendorName: vendorName || "Vendor",
+        date: date || new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
+        dueDate: dueDate || "Net 30",
+        totalAmount: String(totalAmount || "0.00"),
+        paidAmount: "0.00",
+        status: status || "Not Paid",
+        items: items || null
+      })
+      .returning();
+
+    return res.status(201).json({ success: true, vendorBill });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: "Error creating vendor bill" });
+  }
 });
 
 export default router;
