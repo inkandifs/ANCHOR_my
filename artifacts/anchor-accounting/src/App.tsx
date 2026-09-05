@@ -120,23 +120,233 @@ function AppShell({ children, role, setRole }: { children: ReactNode; role: Role
 }
 
 const nodeModules = [
-  { label: 'Contacts', href: '/contacts', icon: Users, x: 15, y: 20 }, { label: 'Products', href: '/products', icon: Package, x: 40, y: 10 },
-  { label: 'Chart of Accounts', href: '/chart-of-accounts', icon: Landmark, x: 66, y: 19 }, { label: 'Journals', href: '/journals', icon: BookOpen, x: 82, y: 47 },
-  { label: 'Purchase & Bills', href: '/purchase-orders', icon: Receipt, x: 64, y: 76 }, { label: 'Sales & Invoices', href: '/sales-orders', icon: FileText, x: 37, y: 82 },
-  { label: 'Budgets', href: '/budgets', icon: BarChart3, x: 13, y: 62 }, { label: 'Reports', href: '/reports/profit-loss', icon: FileBarChart, x: 46, y: 48 },
+  { 
+    id: 0, 
+    label: 'Contacts', 
+    subtitle: 'Vendors & Customers', 
+    icon: Users, 
+    route: '/contacts', 
+    targetId: 1, 
+    x: 15, y: 22, 
+    quickActions: [
+      { label: 'View Directory', route: '/contacts', primary: false },
+      { label: '+ New Contact', route: '/contacts', primary: true }
+    ] 
+  },
+  { 
+    id: 1, 
+    label: 'Sales Orders & Invoices', 
+    subtitle: 'Receivables & Billing', 
+    icon: FileText, 
+    route: '/sales-orders', 
+    targetId: 2, 
+    x: 42, y: 12, 
+    quickActions: [
+      { label: 'Sales Orders', route: '/sales-orders', primary: false },
+      { label: 'Customer Invoices', route: '/customer-invoices', primary: true }
+    ] 
+  },
+  { 
+    id: 2, 
+    label: 'Products & Catalog', 
+    subtitle: 'Goods & Services', 
+    icon: Package, 
+    route: '/products', 
+    targetId: 3, 
+    x: 72, y: 18, 
+    quickActions: [
+      { label: 'Product Catalog', route: '/products', primary: false },
+      { label: '+ Add Product', route: '/products', primary: true }
+    ] 
+  },
+  { 
+    id: 3, 
+    label: 'Purchase Orders & Bills', 
+    subtitle: 'Payables & Suppliers', 
+    icon: Receipt, 
+    route: '/purchase-orders', 
+    targetId: 4, 
+    x: 85, y: 48, 
+    quickActions: [
+      { label: 'Purchase Orders', route: '/purchase-orders', primary: false },
+      { label: 'Vendor Bills', route: '/vendor-bills', primary: true }
+    ] 
+  },
+  { 
+    id: 4, 
+    label: 'Budgets & Allocation', 
+    subtitle: 'Analytical Cost Centers', 
+    icon: BarChart3, 
+    route: '/budgets', 
+    targetId: 5, 
+    x: 70, y: 78, 
+    quickActions: [
+      { label: 'Budgets Overview', route: '/budgets', primary: false },
+      { label: 'Analytical Report', route: '/analytical-budgets-report', primary: true }
+    ] 
+  },
+  { 
+    id: 5, 
+    label: 'Journals & Ledger', 
+    subtitle: 'Double-Entry Posting', 
+    icon: BookOpen, 
+    route: '/journals', 
+    targetId: 6, 
+    x: 40, y: 84, 
+    quickActions: [
+      { label: 'Journal Entries', route: '/journal-entries', primary: true },
+      { label: 'Journal Setup', route: '/journals', primary: false }
+    ] 
+  },
+  { 
+    id: 6, 
+    label: 'Chart of Accounts', 
+    subtitle: 'Assets, Liabilities & Equity', 
+    icon: Landmark, 
+    route: '/chart-of-accounts', 
+    targetId: 7, 
+    x: 15, y: 72, 
+    quickActions: [
+      { label: 'Account Register', route: '/chart-of-accounts', primary: false },
+      { label: '+ New Account', route: '/chart-of-accounts', primary: true }
+    ] 
+  },
+  { 
+    id: 7, 
+    label: 'Financial Reports', 
+    subtitle: 'P&L & Balance Sheet', 
+    icon: FileBarChart, 
+    route: '/reports/profit-loss', 
+    targetId: 0, 
+    x: 10, y: 45, 
+    quickActions: [
+      { label: 'Profit & Loss', route: '/reports/profit-loss', primary: true },
+      { label: 'Balance Sheet', route: '/reports/balance-sheet', primary: false }
+    ] 
+  },
 ];
+
 function NodeHub({ large = false }: { large?: boolean }) {
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
   const [hover, setHover] = useState<number | null>(null);
   const [, setLocation] = useLocation();
-  useEffect(() => { if (paused) return; const timer = window.setInterval(() => setActive(v => (v + 1) % nodeModules.length), 2800); return () => window.clearInterval(timer); }, [paused]);
+
+  useEffect(() => { 
+    if (paused) return; 
+    const timer = window.setInterval(() => setActive(v => (v + 1) % nodeModules.length), 2800); 
+    return () => window.clearInterval(timer); 
+  }, [paused]);
+
   const selected = hover ?? active;
-  return <div className={`node-hub ${large ? 'node-hub-large' : ''}`} onMouseEnter={() => setPaused(true)} onMouseLeave={() => { setPaused(false); setHover(null); }}>
-    <svg className="hub-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path key={selected} className="node-connector" d={`M ${nodeModules[selected].x} ${nodeModules[selected].y} Q 50 50 ${nodeModules[(selected + 1) % nodeModules.length].x} ${nodeModules[(selected + 1) % nodeModules.length].y}`} fill="none" stroke={C.cocoa} strokeWidth=".28"/></svg>
-    <div className="hub-center"><div className="hub-ring"><Calculator size={large ? 31 : 23}/></div><span>ANCHOR</span><small>steady by design</small></div>
-    {nodeModules.map((n, i) => { const Icon = n.icon; return <motion.button key={n.label} className={`node-card ${selected === i ? 'node-active' : ''}`} style={{ left: `${n.x}%`, top: `${n.y}%` }} onMouseEnter={() => { setHover(i); setPaused(true); }} onClick={() => setLocation(n.href)} data-testid={`node-${n.label.toLowerCase().replaceAll(' ','-').replaceAll('&','and')}`}><span className="node-wash"/><Icon size={large ? 24 : 19}/><span>{n.label}</span>{selected === i && <span className="node-popover"><b>{n.label}</b><small>View workspace</small><em>Open <ArrowRight size={12}/></em></span>}</motion.button>; })}
-  </div>;
+  const currNode = nodeModules[selected];
+  const nextNode = nodeModules[currNode.targetId];
+
+  // Curve control points for organic Bezier sweep
+  const midX = (currNode.x + nextNode.x) / 2;
+  const midY = (currNode.y + nextNode.y) / 2;
+  const pathD = `M ${currNode.x} ${currNode.y} Q ${midX + (currNode.y > nextNode.y ? 12 : -12)} ${midY + (currNode.x > nextNode.x ? -12 : 12)} ${nextNode.x} ${nextNode.y}`;
+
+  return (
+    <div 
+      className={`node-hub ${large ? 'node-hub-large' : ''}`} 
+      onMouseEnter={() => setPaused(true)} 
+      onMouseLeave={() => { setPaused(false); setHover(null); }}
+    >
+      <svg className="hub-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <motion.path 
+          key={selected} 
+          className="node-connector" 
+          d={pathD} 
+          fill="none" 
+          stroke={C.cocoa} 
+          strokeWidth=".35" 
+          initial={{ pathLength: 0, opacity: 0.2 }}
+          animate={{ pathLength: 1, opacity: 0.8 }}
+          transition={{ duration: 1.2, ease: "easeInOut" }}
+        />
+      </svg>
+      <div className="hub-center">
+        <div className="hub-ring"><Calculator size={large ? 31 : 23}/></div>
+        <span>ANCHOR</span>
+        <small>steady by design</small>
+      </div>
+
+      {nodeModules.map((n, i) => { 
+        const Icon = n.icon; 
+        const isSelected = selected === i;
+        return (
+          <motion.button 
+            key={n.label} 
+            className={`node-card ${isSelected ? 'node-active' : ''}`} 
+            style={{ left: `${n.x}%`, top: `${n.y}%` }} 
+            onMouseEnter={() => { setHover(i); setPaused(true); }} 
+            onClick={() => setLocation(n.route)} 
+            data-testid={`node-${n.label.toLowerCase().replaceAll(' ','-').replaceAll('&','and')}`}
+          >
+            <span className="node-wash"/>
+            <Icon size={large ? 24 : 19}/>
+            <span>{n.label}</span>
+            {isSelected && (
+              <div className="node-popover" onClick={e => e.stopPropagation()}>
+                <b>{n.label}</b>
+                <small>{n.subtitle}</small>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px' }}>
+                  {n.quickActions.map(action => (
+                    <button
+                      key={action.label}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setLocation(action.route);
+                      }}
+                      style={{
+                        border: '0',
+                        borderRadius: '3px',
+                        padding: '4px 6px',
+                        fontSize: '9px',
+                        fontWeight: action.primary ? 700 : 500,
+                        background: action.primary ? 'var(--olive)' : 'rgba(117,97,78,.15)',
+                        color: action.primary ? '#eeeae1' : 'var(--ink)',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between'
+                      }}
+                    >
+                      <span>{action.label}</span>
+                      <ArrowRight size={10}/>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </motion.button>
+        ); 
+      })}
+
+      {/* Sequence dots indicator at the bottom */}
+      <div style={{ position: 'absolute', bottom: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '6px', zIndex: 10 }}>
+        {nodeModules.map((_, i) => (
+          <button
+            key={i}
+            onClick={(e) => { e.stopPropagation(); setActive(i); setHover(null); }}
+            style={{
+              width: selected === i ? '18px' : '6px',
+              height: '6px',
+              borderRadius: '3px',
+              background: selected === i ? 'var(--olive)' : 'rgba(117,97,78,.35)',
+              border: '0',
+              padding: 0,
+              cursor: 'pointer',
+              transition: 'all 0.3s'
+            }}
+            title={`Jump to ${nodeModules[i].label}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function Kpi({ label, value, detail, href, icon: Icon, action }: { label: string; value: string; detail: string; href?: string; icon: any; action?: () => void }) {
@@ -148,8 +358,65 @@ function Dashboard() {
 }
 
 function Landing() {
-  return <div className="landing noise"><header className="landing-bar"><Link href="/" className="brand-lockup brand-dark" data-testid="link-home-logo"><Logo/><span>ANCHOR</span></Link><div><Link href="/login" className="text-link" data-testid="link-sign-in">Sign in</Link><Link href="/signup" className="landing-cta" data-testid="link-get-started">Get started <ArrowRight size={15}/></Link></div></header><section className="landing-hero"><div className="hero-kicker">A considered home for the books</div><h1>One calm place <i>to run the books.</i></h1><NodeHub large/><div className="hero-scroll">Scroll to explore <ArrowDownRight size={14}/></div></section><section className="feature-strip"><div className="strip-intro"><span className="eyebrow">Built for small teams</span><h2>Clarity without<br/>the ceremony.</h2></div>{[['01','Sales','Orders, invoices, and customer payments in one steady flow.'],['02','Purchase','Bills, vendor commitments, and the costs behind the work.'],['03','Accounting','Journals, accounts, and a reliable record of every decision.'],['04','Reports','A clear view of the numbers when the moment calls for it.']].map(([n,t,d]) => <div className="feature-item" key={n}><span className="feature-no">{n}</span><h3>{t}</h3><p>{d}</p><ArrowUpRight size={16}/></div>)}</section><section className="landing-band"><div><span className="eyebrow">Start with solid ground</span><h2>Give your team a<br/><i>better way to begin.</i></h2></div><Link href="/signup" className="band-link" data-testid="link-create-workspace">Create your workspace <ArrowRight size={16}/></Link></section><footer className="landing-footer"><div className="brand-lockup brand-dark"><Logo/><span>ANCHOR</span></div><span>Accounting, held steady.</span><span>© 2026 Anchor Workspace</span></footer></div>;
+  return <div className="landing noise">
+    <header className="landing-bar">
+      <Link href="/" className="brand-lockup brand-dark" data-testid="link-home-logo"><Logo/><span>ANCHOR</span></Link>
+      <div>
+        <Link href="/login" className="text-link" data-testid="link-sign-in">Sign in</Link>
+        <Link href="/signup" className="landing-cta" data-testid="link-get-started">Get started <ArrowRight size={15}/></Link>
+      </div>
+    </header>
+    <section className="landing-hero">
+      <div className="hero-kicker"><i>One calm place to run the books.</i></div>
+      <NodeHub large/>
+      <div className="hero-scroll" style={{ textTransform: 'uppercase', letterSpacing: '.08em', marginTop: '12px' }}>
+        Sequential Double-Entry Accounting · Continuous Reconciliation · Single Source of Truth
+      </div>
+    </section>
+    <section className="feature-strip">
+      <div className="strip-intro">
+        <span className="eyebrow">Built for small teams</span>
+        <h2>Clarity without<br/>the ceremony.</h2>
+      </div>
+      {[
+        ['01','Sales & Invoicing','Order confirmations convert directly to receivable invoices with automated partial payment tracking.'],
+        ['02','Purchases & Bills','Vendor orders, line item receipting, and auto-generated bills equipped with budget threshold alerts.'],
+        ['03','General Ledger','Strict double-entry journal postings, configurable account mappings, and analytical cost center tags.'],
+        ['04','Financial Reports','Live Balance Sheet and Profit & Loss statements structured for statutory filing and board reviews.']
+      ].map(([n,t,d]) => (
+        <div className="feature-item" key={n}>
+          <span className="feature-no">{n}</span>
+          <h3>{t}</h3>
+          <p>{d}</p>
+          <ArrowUpRight size={16}/>
+        </div>
+      ))}
+    </section>
+    <section className="landing-band">
+      <div>
+        <span className="eyebrow">Start with solid ground</span>
+        <h2>Ready for <i>calm financial control?</i></h2>
+        <p style={{ marginTop: '8px', opacity: 0.9, fontSize: '13px' }}>
+          Set up your ledger, import your chart of accounts, and begin invoicing in minutes.
+        </p>
+      </div>
+      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+        <Link href="/signup" className="band-link" data-testid="link-create-workspace">
+          Create your workspace <ArrowRight size={16}/>
+        </Link>
+        <Link href="/login" className="band-link" style={{ background: 'transparent', border: '1px solid rgba(233,228,217,.4)', color: '#eeeae1' }} data-testid="link-member-sign-in">
+          Member Sign in <ArrowRight size={16}/>
+        </Link>
+      </div>
+    </section>
+    <footer className="landing-footer">
+      <div className="brand-lockup brand-dark"><Logo/><span>ANCHOR</span></div>
+      <span>— Precision Ledger Systems</span>
+      <span>© 2026 Anchor Workspace</span>
+    </footer>
+  </div>;
 }
+
 
 function AuthLayout({ children, aside }: { children: ReactNode; aside: ReactNode }) {
   return <div className="auth-page noise"><div className="auth-aside"><Link href="/" className="brand-lockup brand-dark"><Logo/><span>ANCHOR</span></Link><div className="auth-quote"><span className="eyebrow">ANCHOR / PRIVATE WORKSPACE</span><h2>Good records make<br/><i>good decisions.</i></h2><p>Tools for the people who keep a business moving.</p></div><div className="auth-aside-foot">A quiet place to run the books <span>↗</span></div></div><main className="auth-main"><div className="auth-card">{aside}{children}</div></main></div>;
