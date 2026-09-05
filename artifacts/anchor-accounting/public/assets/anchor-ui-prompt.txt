@@ -1,0 +1,364 @@
+# ANCHOR — UI/Frontend Generation Prompt (v2)
+
+**Attached assets — use these directly, do not reinterpret from description alone:**
+- **Video:** a screen recording of the Tally Prime marketing site's animated
+  module grid. Recreate its exact interaction pattern — sequential card
+  activation, the soft watercolor-wash background behind the active card, and
+  the self-drawing curved connector line between cards. Restyle only the
+  colors/icons/labels to match ANCHOR; keep the timing and motion feel
+  identical to the video.
+- **Logo:** the ANCHOR logo file (cocoa-brown anchor with looped rope detail +
+  serif "ANCHOR" wordmark). Use this exact asset as-is everywhere it appears —
+  do not redraw, simplify, or reinterpret it.
+- **Excalidraw file:** the hackathon wireframe/spec board. It defines exact
+  field names, form layouts, auto-numbering formats, role permissions, status
+  flows, and computed-field logic for every module. Treat it as the source of
+  truth for what fields exist on each screen and how records relate to each
+  other — Sections 8–9 below summarize the parts that matter for the UI, but
+  check the excalidraw itself for anything ambiguous.
+
+Build a multi-page enterprise accounting web app called **ANCHOR**
+(React + TypeScript + Tailwind CSS + Framer Motion). This phase is **UI only**
+— no backend logic, calculations, or data validation need to actually run.
+Use realistic mock/placeholder data everywhere so every screen looks fully
+populated and production-ready.
+
+Tone: **professional, calm, premium SaaS. Not flashy.** Think Linear, Notion,
+or a modern private-banking dashboard — clean whitespace, restrained motion,
+no gradients, no neon, no bouncy effects.
+
+---
+
+## 1. Brand Identity
+
+- **App name:** ANCHOR
+- **Logo:** provided asset (cocoa-brown anchor, looped rope, serif wordmark) —
+  fixed, don't redesign.
+- **Typography:**
+  - Headings / wordmark: elegant serif ("Playfair Display" or "Lora")
+  - Body text, tables, forms, nav: clean grotesk sans-serif ("Inter" or
+    "Manrope")
+- **Iconography:** thin-stroke, outline-style icons only — never filled/glyph-
+  heavy.
+
+## 2. Color Palette (exact hex — do not substitute)
+
+| Role | Hex | Usage |
+|---|---|---|
+| Canvas / background | `#DDD8CC` | Every page background — never pure white |
+| Structural bars | `#70754E` (deep olive) | Navbar, section headers, primary buttons, active nav item, sidebar |
+| Secondary accent | `#75614E` (cocoa brown) | Icons, borders, hover states, logo, secondary buttons, links |
+| Body text | `#423120` (dark espresso) | All text instead of black |
+| Success | Muted olive-emerald | Paid/positive states |
+| Warning | Desaturated warm amber | Non-blocking warnings |
+| Danger | Muted brick red | Blocking errors |
+
+Thin 1px olive/brown divider lines, used sparingly. Shadows barely-there
+(soft 1–2px ambient at most).
+
+## 3. Logo Motion
+
+- **Splash-to-dashboard, on load/after login:** "drop and settle" — logo drops
+  in from above with an ease-out curve, gently settles top-left, like an
+  anchor being lowered. Runs once, ~0.8–1.2s.
+- **Persistent navbar logo:** quick fade + scale-in on route mount (~0.3s).
+- **Hover:** slight sway/rotation on the rope-loop detail only (2–3°, spring-
+  based, settles back) — a small delightful detail, not a full loop.
+
+---
+
+## 4. Site Structure (important — read before building)
+
+ANCHOR has **two distinct experiences** that must not be confused:
+
+1. **Public marketing site** — no login required: **Landing Page** →
+   Login/Signup/Forgot Password.
+2. **Authenticated app** — everything behind login: internal Dashboard + all
+   12+ operational pages, plus a lightweight **Customer Portal** for the
+   `User` role (see Section 9).
+
+---
+
+## 5. Landing Page (public, new — build this first)
+
+This is a **separate route from the internal Dashboard**, the first thing any
+visitor sees, and its job is simple: **the hero is the video animation and
+nothing competes with it.**
+
+- **Top bar:** just the logo + wordmark on the left, a "Sign in" link and a
+  "Get started" button on the right. Minimal, transparent/cream background.
+- **Hero section (the entire above-the-fold area):** a full-width, cinematic
+  recreation of the attached video's node-grid animation, restyled to ANCHOR's
+  palette and modules (Contacts, Products, Chart of Accounts, Journals,
+  Purchase Orders & Bills, Sales Orders & Invoices, Budgets, Reports). Nothing
+  else in the hero — no headline stacked on top, no competing copy. If any
+  text is needed, keep it to one short line above or below the animation
+  (e.g. "One calm place to run the books.") — the animation itself is the
+  centerpiece, exactly as it dominates the Tally Prime site the video was
+  captured from.
+- **Below the fold (secondary, keep light):** a short feature strip (3–4
+  short cards summarizing Sales / Purchase / Accounting / Reports), one CTA
+  band ("Create your workspace" → Signup), and a minimal footer. Don't over-
+  build this — the hero animation is the priority; these sections exist so
+  the page doesn't feel unfinished, not to compete for attention.
+- Same restrained motion language as the rest of the app: fade/scale-ins on
+  scroll, nothing bouncy.
+
+## 6. Dashboard Node-Hub (internal, functional version)
+
+The internal Dashboard (after login) reuses the same animation component as
+the landing page hero, but here it's **functional, not just decorative**:
+
+- A grid of outline-style module icon cards laid out with generous gaps,
+  cream background.
+- **Idle state:** thin-outlined, taupe stroke, no fill, icon + tiny label.
+- **Active/cycling state (auto-cycles ~2.5–3s per card):** a soft watercolor-
+  wash circular gradient behind the active card (light olive/cocoa, low
+  opacity), icon fills with accent color, label goes bold.
+- A thin curved SVG connector **animates drawing itself** (stroke-dashoffset,
+  not just a static path) from the active card to an adjacent related card,
+  then fades. Never more than one active card/connector at a time.
+- **On hover/click:** pause the cycle, highlight that card, and show a small
+  anchored quick-action popup near it (e.g. "Contacts — View List /
+  + New Contact"), matching the KPI-card visual language, and clicking
+  navigates into that module.
+- Motion should feel like a slow, deliberate spotlight — calm and sequential.
+- Above or below the node hub: a row of summary KPI cards (Sales, Purchases,
+  Budget), each showing All / Confirmed / Draft counts, with a small
+  "+ New" button.
+
+---
+
+## 7. Global Layout (authenticated app)
+
+- **Top navbar** (olive `#70754E`): logo top-left, "ANCHOR" wordmark, primary
+  nav center/right (Sales, Purchase, Account, Reports dropdown groups), user
+  avatar/role badge far right.
+- **Left sidebar** (cream background, thin olive border-right): module
+  shortcuts for the current section (e.g. inside "Account": Contacts,
+  Products, Chart of Accounts, Journals).
+- **Content area:** generous padding, max-width container, 8px spacing scale.
+- **Breadcrumbs** under the navbar on inner pages (e.g. Account / Chart of
+  Accounts).
+
+---
+
+## 8. Auth Pages
+
+- **Login:** centered card on cream background, animated logo above the form,
+  olive primary button, taupe secondary/link text, "Forgot Password | Sign Up"
+  links.
+- **Sign Up:** same layout family. Fields: Name, Login ID, Email, Password,
+  Re-enter Password, Role selector (**Admin / Accountant / User**) as a
+  segmented control. Show inline helper/error text under each field (visual
+  only, no real check needed):
+  - Login ID must be unique, **6–12 characters**
+  - Email must not be a duplicate
+  - Password needs a lowercase letter, an uppercase letter, a special
+    character, and **8+ characters**
+  - On mismatch (visual state only), use the muted-brick-red error style with
+    a small icon + message
+  - Note: signup always creates an **invoicing/"User"-role** account — Admin
+    and Accountant accounts are created internally via a "Create User" form
+    (Section 9), not public signup.
+- **Forgot Password:** simple centered form, same visual family as Login.
+- **Invalid login (visual state):** show "Invalid Login Id or Password" error
+  styling on a failed mock attempt.
+
+**Roles (for reference — affects what nav/pages a user sees):**
+- **Admin** — full access to everything.
+- **Accountant** — create master data, record transactions, manage
+  customers/vendors, accounting dashboard, journal entries, invoices, bills,
+  payments, reports.
+- **User** — only sees the Customer Portal (their own invoices/bills, can pay
+  directly).
+
+---
+
+## 9. Pages to Build (authenticated app, visual layout only, mock data populated)
+
+1. **Dashboard** — see Section 6.
+
+2. **Create User** (Admin-only) — Name, Login ID, E-mail, Role (User/
+   Administrator/Accountant), Password, Re-enter Password, Create/Cancel. Same
+   validation-hint styling as Signup.
+
+3. **Contacts** — List view (table, avatar thumbnails) + Kanban toggle (cards
+   grouped by type: Customer/Vendor). "+ New Contact", slide-over or full-page
+   form (Name, Email — marked unique, Phone, Address block: Street/City/
+   State/Country/Pincode, profile image upload).
+
+4. **Products** — same List/Kanban pattern. List: image thumbnail, name, type
+   badge (Goods/Service/Combo pill), sales price, cost. Form: image upload,
+   product type dropdown, category combobox with "create new" affordance
+   (category is a many-to-one, creatable on the fly).
+
+5. **Analytics** (Analytical Accounts) — list + form: Analytic Account name,
+   Type (Income/Expense), and read-only Budget/Start Date/End Date/Committed/
+   Achieved columns pulled from linked budgets.
+
+6. **Chart of Accounts** — dense table: Account Name, Type (colored pill:
+   Asset/Liability/Income/Expense/Bank/Cash/Capital), balance column.
+   "+ New Account" opens a compact modal.
+
+7. **Journals** — table of journal configs (Name, Type badge, Default Account
+   link — many-to-one from Chart of Accounts) + creation form. Pre-populate
+   Sales / Purchase / Bank / Cash journals with their default accounts.
+
+8. **Journal Entries** — list with status pills (Draft/Posted). Posting form:
+   Accounting Date, Journal (many-to-one), debit/credit line-item table with a
+   running-totals footer — show both the red "totals don't match" blocking
+   state and the green balanced/ready-to-post state (visual toggle, no real
+   math needed). Stage buttons: `New` → `Post`/`Cancel` when draft;
+   `Reset to Draft` when posted.
+
+9. **Purchase Orders** — list with status pills (Draft/Confirmed/Billed),
+   auto-numbered `P00001` style, PO detail/create form (vendor selector,
+   PO Date, Payment Terms — creatable, line items: Product/Analytic tag/Qty/
+   Unit Price/Line Total), a "Create Bill" action. Soft amber banner component
+   for budget warnings (visual only). Stage buttons: `New` → `Confirm` → `Back`.
+
+10. **Vendor Bill** (separate page, reached via "Create Bill" from a PO or
+    created fresh) — Vendor Bill No. (alphanumeric, e.g. `ABC-26-001`),
+    auto-generated Bill Number (`Bill/2026/0001`), Vendor Name, Bill Date, Due
+    Date, line items (Product / Chart of Account / Analytic tag / Qty / Unit
+    Price / Total), a link back to the source PO **shown only when the bill
+    was created from one**, Total, Paid via Cash/Bank, Amount Due (Total minus
+    Paid, computed visually). Actions: `Cancel`, `Pay`.
+
+11. **Sales Orders** — mirror of Purchase Orders (Customer instead of Vendor,
+    auto-numbered `S00001`, "Create Invoice" action instead of "Create Bill").
+
+12. **Customer Invoice** (mirror of Vendor Bill) — Customer Invoice No.,
+    auto-generated `INV/2026/0001`, link back to source SO when applicable,
+    same Total/Paid/Amount Due pattern. Actions: `Pay`.
+
+13. **Payment modal** (shared by Vendor Bill and Customer Invoice) — Payment
+    Type (Send/Receive), Partner (autofilled), Amount (autofilled from Amount
+    Due), Date (defaults today), Payment Via (Bank default, can switch to
+    Cash), Note, plus Print/Send options. Confirm/Cancel.
+
+14. **Budgets** — card layout per budget: Budget Name, Period (Start/End
+    date), Responsible Person (from Contacts), Analytic/Type/Committed/
+    Achieved/Achieved %/Amount-to-Achieve table, progress bar for Achieved %,
+    stat rows for Committed/Achieved/Amount to Achieve. `Revise` button — on
+    click, creates a linked revised copy named `<Original Name> Revised`, and
+    both records show a clickable linked badge to navigate to the other
+    (Original ↔ Revised). Stage buttons per the mapping: `New` → `Confirm` →
+    `Revise` (confirmed only) / `Cancel`.
+
+15. **Analytical Budgets Report** — list + Kanban view of budgets with a small
+    pie chart per record (visual only), Budget/Start Date/End Date/Status
+    columns, opens the Budget form on click.
+
+16. **Customer Portal** (User role only — visually distinct, lighter chrome,
+    no sidebar/full nav) — a read-only list of their own invoices: Invoice /
+    Invoice Date / Due Date / Amount Due / Status, with a "Pay Now" button
+    that visually flips the row to "Paid" on click. Include Password Reset
+    and Log Out entries in a simple account menu.
+
+17. **Reports — Profit & Loss** — Income section, Expenses section, bold Net
+    Income total row, period filter dropdown top-right, Print/Download icon
+    buttons.
+
+18. **Reports — Balance Sheet** — two-column layout (Assets | Liabilities &
+    Capital), same filter/print/download affordances, bold totals rows with a
+    top border. Assets and Liabilities totals should visually match.
+
+---
+
+## 10. BEACON — Assistant Widget UI
+
+BEACON is a voice + text assistant that can **navigate the app** and
+**answer data questions**.
+
+- **Trigger:** small floating circular button, bottom-right, olive/brown, with
+  a subtle idle pulse (like a lighthouse beacon), a beacon/light icon (not a
+  generic chat bubble).
+- **On click, expands into a compact panel** (bottom-right, ~360px wide):
+  - Header: "Beacon" + status text ("Ask me to take you somewhere, or ask
+    about your data")
+  - Scrollable chat thread — user messages right-aligned cocoa-brown bubbles,
+    Beacon's replies left-aligned cream/white bubbles with a thin olive
+    border
+  - Navigation replies show a small inline clickable "→ Chart of Accounts"
+    chip
+  - Data-answer replies can show a small inline stat card or mini-table
+    snippet inside the bubble (e.g. "3 unpaid invoices" + a short list)
+  - Text input at the bottom with a **push-to-talk mic icon button** (not a
+    toggle) that pulses/glows while "listening," returns to idle after
+  - A few suggestion chips above the input on first open ("Show unpaid
+    invoices," "Go to journal entries," "Open balance sheet")
+- Same restrained motion language as the rest of the app — fade/scale, no
+  bounce.
+
+---
+
+## 11. Component Style Notes
+
+- Buttons: solid olive primary, outlined cocoa secondary, ghost/text
+  tertiary — consistent 6–8px radius, no pill buttons except status badges.
+- Tables: minimal borders, generous row height, barely-there hover tint,
+  sticky header on scroll.
+- Forms: floating or top-aligned labels, olive focus ring, muted-brick-red
+  error states with a small icon + message.
+- Status pills: small, rounded-full, ~15% opacity background + full-opacity
+  text of the same hue (Draft = taupe, Confirmed/Posted = olive, Paid =
+  success green, Not Paid = muted red, Partial = amber).
+- Motion throughout: 150–300ms for micro-interactions, 600–1000ms max for
+  page-level reveals. Nothing animated for its own sake.
+
+---
+
+## 12. Architecture (build it this way from the start)
+
+Keep these six layers clearly separated — don't collapse everything into one
+file:
+
+1. **UI components** (`src/components/`) — AppShell, NodeHub, Beacon, Modal,
+   StatusPill, Table, KpiCard, Logo, etc.
+2. **Page routes** (`src/pages/`) — one file per page listed in Section 9,
+   plus Landing, Login, Signup, ForgotPassword, CustomerPortal
+3. **Mock data** (`src/mock-data/`) — one file per entity (contacts, products,
+   accounts, journals, journalEntries, purchaseOrders, vendorBills,
+   salesOrders, customerInvoices, budgets, analytics), using realistic
+   auto-numbered IDs, not one flat file
+4. **Application state** (`src/state/`) — current user/role, toast, Beacon
+   open/closed, auth (mocked)
+5. **Service/API layer** (`src/services/`) — one clearly named handler per
+   action (create, edit, delete, confirm, convert, pay, revise, print,
+   download) — stubbed now, structured so a real REST call can drop in later
+   without touching UI components
+6. **Navigation/actions** (`src/routes.tsx`) — real application routes, not
+   just conditionally rendered content; BEACON's navigation actions call into
+   this same routing, not a separate ad-hoc mechanism
+
+Use realistic IDs and object structures for mock records so a Node.js/Express
+backend can be wired in later without rebuilding the UI. Don't hardcode
+business calculations into UI components — display computed-looking values as
+static mock numbers instead.
+
+---
+
+## 13. Execution Plan (follow this order, don't skip ahead)
+
+Work in phases. **After each phase, stop and confirm the app still runs and
+renders correctly before starting the next phase.** Commit after each phase.
+Do not try to build everything in a single pass — prioritize finishing every
+page over polishing any one page early.
+
+1. Architecture scaffold (six layers above) + design tokens/typography +
+   global layout shell (navbar, sidebar, breadcrumbs) + logo component with
+   its motion states.
+2. Landing Page with the hero animation, then Login/Signup/Forgot Password.
+3. Dashboard with the functional node-hub + KPI cards.
+4. Contacts, Products, Analytics, Chart of Accounts, Journals (all "master
+   data" list/kanban/form pages).
+5. Journal Entries (with balanced/unbalanced visual states), Purchase Orders,
+   Vendor Bill, Payment modal.
+6. Sales Orders, Customer Invoice (reuse Payment modal), Customer Portal.
+7. Budgets, Analytical Budgets Report.
+8. Reports (P&L, Balance Sheet), BEACON widget.
+
+Keep responses/code generation lean at each step so the full app finishes
+within the available build time/credits.

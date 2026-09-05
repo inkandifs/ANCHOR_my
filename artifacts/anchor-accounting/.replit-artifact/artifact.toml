@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "ANCHOR Accounting"
+description = "A calm, premium enterprise accounting workspace for managing sales, purchasing, journals, budgets, reports, and customer invoices with role-aware navigation and a guided Beacon assistant."
+version = "1.0.0"
+id = "artifacts/anchor-accounting"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20893
+
+[services.development]
+run = "pnpm --filter @workspace/anchor-accounting run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/anchor-accounting", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/anchor-accounting/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20893"
+BASE_PATH = "/"
