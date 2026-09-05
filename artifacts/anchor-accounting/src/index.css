@@ -490,7 +490,16 @@ td small, .cell-primary small { display:block; margin-top:3px; color:#958979; fo
 .row-icon, .doc-icon { width:31px;height:31px; display:inline-flex; align-items:center;justify-content:center;border:1px solid rgba(117,97,78,.3);color:var(--cocoa);border-radius:5px; background:rgba(221,216,204,.55); }
 .doc-icon { border-radius:50%; }
 .money { font-family:var(--app-font-mono); font-size:11px; color:var(--ink); }
-.more-btn { color:#917f6f; }
+.more-btn { color:#917f6f; cursor:pointer; border-radius:4px; transition:background .15s; }
+.more-btn:hover { background:rgba(112,117,78,.15); color:var(--ink); }
+.row-actions-container { position:relative; display:inline-block; }
+.row-actions-dropdown { position:absolute; top:100%; right:0; z-index:100; min-width:150px; background:#f4f0e6; border:1px solid rgba(117,97,78,.35); border-radius:6px; box-shadow:0 6px 16px rgba(45,34,23,.18); padding:5px 0; margin-top:2px; animation:fadeInFast .15s ease-out; }
+.row-action-item { width:100%; padding:8px 13px; background:transparent; border:none; display:flex; align-items:center; gap:8px; font-size:11px; font-weight:500; color:var(--ink); text-align:left; cursor:pointer; transition:background .12s; }
+.row-action-item:hover { background:rgba(112,117,78,.14); color:var(--olive); }
+.row-action-item.danger { color:#943737; }
+.row-action-item.danger:hover { background:rgba(148,55,55,.1); color:#7d2a2a; }
+.toast-pill { position:absolute; right:100%; top:50%; transform:translateY(-50%); margin-right:8px; background:var(--olive); color:#eeeae1; font-size:10px; padding:3px 8px; border-radius:12px; display:flex; align-items:center; gap:4px; white-space:nowrap; box-shadow:0 2px 6px rgba(0,0,0,.15); z-index:101; }
+@keyframes fadeInFast { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
 .status-pill { display:inline-flex; align-items:center; border-radius:30px; padding:4px 8px; font-size:10px; line-height:1; font-weight:600; }
 .status-draft, .status-not-paid { background:rgba(117,97,78,.15); color:#75614e; }
 .status-confirmed, .status-posted { background:rgba(112,117,78,.17); color:#5c6540; }

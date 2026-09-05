@@ -22,10 +22,12 @@ export const api = {
   // Contacts
   getContacts: () => apiFetch<{ success: boolean; contacts: any[] }>("/contacts"),
   createContact: (data: any) => apiFetch<{ success: boolean; contact: any }>("/contacts", { method: "POST", body: JSON.stringify(data) }),
+  deleteContact: (id: string | number) => apiFetch<{ success: boolean }>("/contacts/" + id, { method: "DELETE" }),
 
   // Products
   getProducts: () => apiFetch<{ success: boolean; products: any[] }>("/products"),
   createProduct: (data: any) => apiFetch<{ success: boolean; product: any }>("/products", { method: "POST", body: JSON.stringify(data) }),
+  deleteProduct: (id: string | number) => apiFetch<{ success: boolean }>("/products/" + id, { method: "DELETE" }),
 
   // Sales
   getSalesOrders: () => apiFetch<{ success: boolean; salesOrders: any[] }>("/sales-orders"),
@@ -46,10 +48,13 @@ export const api = {
   // Accounting
   getAccounts: () => apiFetch<{ success: boolean; accounts: any[] }>("/chart-of-accounts"),
   createAccount: (data: any) => apiFetch<{ success: boolean; account: any }>("/chart-of-accounts", { method: "POST", body: JSON.stringify(data) }),
+  deleteAccount: (id: string | number) => apiFetch<{ success: boolean }>("/chart-of-accounts/" + id, { method: "DELETE" }),
   getJournals: () => apiFetch<{ success: boolean; journals: any[] }>("/journals"),
   createJournal: (data: any) => apiFetch<{ success: boolean; journal: any }>("/journals", { method: "POST", body: JSON.stringify(data) }),
+  deleteJournal: (id: string | number) => apiFetch<{ success: boolean }>("/journals/" + id, { method: "DELETE" }),
   getJournalEntries: () => apiFetch<{ success: boolean; journalEntries: any[] }>("/journal-entries"),
   createJournalEntry: (data: any) => apiFetch<{ success: boolean; journalEntry: any }>("/journal-entries", { method: "POST", body: JSON.stringify(data) }),
+  deleteJournalEntry: (id: string | number) => apiFetch<{ success: boolean }>("/journal-entries/" + id, { method: "DELETE" }),
 
   // Budgets
   getBudgets: () => apiFetch<{ success: boolean; budgets: any[] }>("/budgets"),

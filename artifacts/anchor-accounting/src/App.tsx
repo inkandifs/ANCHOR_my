@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, useRef, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -7,10 +7,10 @@ import { Link, Route, Switch, Router as WouterRouter, useLocation } from 'wouter
 import { motion } from 'framer-motion';
 import {
   Activity, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUpRight, BarChart3, Bell, BookOpen,
-  BriefcaseBusiness, Calculator, Check, ChevronDown, ChevronRight, Clock,
-  CreditCard, Download, FileBarChart, FileText, Filter, HelpCircle, Home, Landmark,
+  BriefcaseBusiness, Calculator, Check, ChevronDown, ChevronRight, Clock, Copy,
+  CreditCard, Download, Edit2, Eye, FileBarChart, FileText, Filter, HelpCircle, Home, Landmark,
   LayoutGrid, LifeBuoy, List, LogOut, MoreHorizontal, Package, PanelLeft,
-  Plus, Printer, Receipt, Search, Settings, ShieldCheck, Sparkles, TrendingUp,
+  Plus, Printer, Receipt, Search, Settings, ShieldCheck, Sparkles, Trash2, TrendingUp,
   UserPlus, Users, X, Zap
 } from 'lucide-react';
 import {
@@ -435,8 +435,117 @@ function ForgotPassword() { const [sent, setSent] = useState(false); return <Aut
 function ViewToggle({ view, setView }: { view: 'list'|'kanban'; setView: (v: 'list'|'kanban') => void }) { return <div className="view-toggle"><button className={view === 'list' ? 'selected' : ''} onClick={() => setView('list')} data-testid="button-list-view"><List size={15}/> List</button><button className={view === 'kanban' ? 'selected' : ''} onClick={() => setView('kanban')} data-testid="button-kanban-view"><LayoutGrid size={15}/> Kanban</button></div>; }
 function CreateModal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) { return <div className="modal-backdrop"><motion.div initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} className="modal"><div className="modal-head"><div><span className="eyebrow">NEW RECORD</span><h2>{title}</h2></div><button className="icon-btn" onClick={onClose} data-testid="button-close-modal"><X size={18}/></button></div>{children}</motion.div></div>; }
 
-function MasterPage({ kind }: { kind: 'contacts'|'products'|'analytics'|'accounts'|'journals' }) {
-  const [view, setView] = useState<'list'|'kanban'>('list');
+function RowActions({
+  record,
+  onView,
+  onEdit,
+  onDelete,
+  label = 'record'
+}: {
+  record: any;
+  onView?: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  label?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    if (open) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open]);
+
+  const handleCopyId = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const idVal = record?.id || record?.entryNo || record?.orderNo || record?.name || 'ID';
+    navigator.clipboard?.writeText(String(idVal));
+    setToast('Copied to clipboard!');
+    setOpen(false);
+    setTimeout(() => setToast(null), 2000);
+  };
+
+  return (
+    <div className="row-actions-container" ref={menuRef} onClick={(e) => e.stopPropagation()}>
+      <button
+        className="more-btn"
+        data-testid={`button-more-${record?.id || 'row'}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen(!open);
+        }}
+        title="Actions"
+      >
+        <MoreHorizontal size={17} />
+      </button>
+
+      {toast && (
+        <div className="toast-pill">
+          <Check size={12} /> {toast}
+        </div>
+      )}
+
+      {open && (
+        <div className="row-actions-dropdown">
+          <button
+            className="row-action-item"
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen(false);
+              if (onView) onView();
+              else alert(`Details for ${record.name || record.partner || record.entryNo || record.id}:\n${JSON.stringify(record, null, 2)}`);
+            }}
+          >
+            <Eye size={14} /> View details
+          </button>
+
+          {onEdit && (
+            <button
+              className="row-action-item"
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpen(false);
+                onEdit();
+              }}
+            >
+              <Edit2 size={14} /> Edit {label}
+            </button>
+          )}
+
+          <button className="row-action-item" onClick={handleCopyId}>
+            <Copy size={14} /> Copy ID / Details
+          </button>
+
+          {onDelete && (
+            <button
+              className="row-action-item danger"
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpen(false);
+                if (confirm(`Are you sure you want to delete this ${label}?`)) {
+                  onDelete();
+                }
+              }}
+            >
+              <Trash2 size={14} /> Delete {label}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MasterPage({ kind }: { kind: 'contacts' | 'products' | 'analytics' | 'accounts' | 'journals' }) {
+  const [view, setView] = useState<'list' | 'kanban'>('list');
   const [query, setQuery] = useState('');
   const [modal, setModal] = useState(false);
   const [items, setItems] = useState<any[]>([]);
@@ -498,6 +607,18 @@ function MasterPage({ kind }: { kind: 'contacts'|'products'|'analytics'|'account
     setDescInput('');
   };
 
+  const handleDeleteItem = async (id: any) => {
+    try {
+      if (kind === 'contacts') await api.deleteContact(id);
+      else if (kind === 'products') await api.deleteProduct(id);
+      else if (kind === 'accounts') await api.deleteAccount(id);
+      else if (kind === 'journals') await api.deleteJournal(id);
+    } catch (err) {
+      console.error('Delete error', err);
+    }
+    setItems(prev => prev.filter(item => item.id !== id));
+  };
+
   const config = {
     contacts: { title: 'Contacts', eyebrow: 'ACCOUNT / MASTER DATA', detail: 'Customers and vendors your workspace relies on.', action: 'New contact', cols: ['Contact','Type','Email','Location','Balance'], icon: Users },
     products: { title: 'Products', eyebrow: 'ACCOUNT / MASTER DATA', detail: 'The goods and services that move through your books.', action: 'New product', cols: ['Product','Type','Category','Sales price','Cost'], icon: Package },
@@ -508,7 +629,7 @@ function MasterPage({ kind }: { kind: 'contacts'|'products'|'analytics'|'account
 
   const rows = items.filter((r: any) => JSON.stringify(r).toLowerCase().includes(query.toLowerCase()));
 
-  return <><Breadcrumb section={config.eyebrow.split(' / ')[0]} page={config.title}/><PageTitle eyebrow={config.eyebrow} title={config.title} detail={config.detail} action={<Button onClick={() => setModal(true)} testId={`button-new-${kind}`}><Plus size={16}/>{config.action}</Button>}/><div className="toolbar"><div className="search-field"><Search size={16}/><input data-testid={`input-search-${kind}`} placeholder={`Search ${config.title.toLowerCase()}`} value={query} onChange={e => setQuery(e.target.value)}/></div><div className="toolbar-right"><Button variant="ghost" testId={`button-filter-${kind}`}><Filter size={15}/> Filter</Button><ViewToggle view={view} setView={setView}/></div></div>{view === 'list' ? <div className="table-card"><table><thead><tr>{config.cols.map(c => <th key={c}>{c}</th>)}<th/></tr></thead><tbody>{rows.map((r: any) => <tr key={r.id} data-testid={`row-${kind}-${r.id}`}><td><div className="cell-primary"><span className="row-icon"><config.icon size={15}/></span><div><b>{r.name || r.partner || r.label}</b><small>{r.id}</small></div></div></td><td>{r.type && <StatusPill status={r.type}/>}</td><td>{r.email || r.account || r.category || r.period || r.defaultAccount || '—'}</td>{kind === 'contacts' && <td>{r.city || r.address || 'Local'}</td>}{kind === 'products' && <td>{r.sales}</td>}{kind === 'analytics' && <td>{r.achieved}</td>}{kind === 'accounts' && <td className="money">{r.balance}</td>}{kind === 'journals' && <td className="text-cocoa">{r.account}</td>}<td><button className="more-btn" data-testid={`button-more-${kind}-${r.id}`}><MoreHorizontal size={17}/></button></td></tr>)}</tbody></table></div> : <div className="kanban-grid">{['Customer','Vendor','Service','Asset','Goods'].filter(group => rows.some((r: any) => r.type === group || r.category === group) || kind === 'contacts').map(group => <div className="kanban-column" key={group}><div className="kanban-head"><span>{group}</span><em>{rows.filter((r: any) => r.type === group || r.category === group).length}</em></div>{rows.filter((r: any) => r.type === group || r.category === group).map((r: any) => <div className="kanban-card" key={r.id}><div><b>{r.name || r.partner}</b><StatusPill status={r.type || r.status || 'Active'}/></div><small>{r.email || r.category || r.account || 'Active'}</small><span>{r.balance || r.sales || r.achieved || 'Active'}</span></div>)}</div>)}</div>}{modal && <CreateModal title={config.action} onClose={() => setModal(false)}><form className="modal-form" onSubmit={handleSave}><Field label={kind === 'accounts' ? 'Account name' : kind === 'journals' ? 'Journal name' : 'Name'} value={nameInput} onChange={setNameInput} placeholder={`Enter ${config.title.toLowerCase()} name`}/><SelectField label="Type" value={typeInput} onChange={setTypeInput} options={kind === 'accounts' ? ['Asset','Liability','Income','Expense','Bank','Cash','Capital'] : kind === 'contacts' ? ['Customer','Vendor'] : ['Goods','Services','General','Sales','Purchase']}/><Field label="Email / Notes" value={descInput} onChange={setDescInput} placeholder="Contact email or optional note"/><div className="modal-actions"><Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button><Button type="submit" testId={`button-save-${kind}`}>Create record</Button></div></form></CreateModal>}</>;
+  return <><Breadcrumb section={config.eyebrow.split(' / ')[0]} page={config.title}/><PageTitle eyebrow={config.eyebrow} title={config.title} detail={config.detail} action={<Button onClick={() => setModal(true)} testId={`button-new-${kind}`}><Plus size={16}/>{config.action}</Button>}/><div className="toolbar"><div className="search-field"><Search size={16}/><input data-testid={`input-search-${kind}`} placeholder={`Search ${config.title.toLowerCase()}`} value={query} onChange={e => setQuery(e.target.value)}/></div><div className="toolbar-right"><Button variant="ghost" testId={`button-filter-${kind}`}><Filter size={15}/> Filter</Button><ViewToggle view={view} setView={setView}/></div></div>{view === 'list' ? <div className="table-card"><table><thead><tr>{config.cols.map(c => <th key={c}>{c}</th>)}<th/></tr></thead><tbody>{rows.map((r: any) => <tr key={r.id} data-testid={`row-${kind}-${r.id}`}><td><div className="cell-primary"><span className="row-icon"><config.icon size={15}/></span><div><b>{r.name || r.partner || r.label}</b><small>{r.id}</small></div></div></td><td>{r.type && <StatusPill status={r.type}/>}</td><td>{r.email || r.account || r.category || r.period || r.defaultAccount || '—'}</td>{kind === 'contacts' && <td>{r.city || r.address || 'Local'}</td>}{kind === 'products' && <td>{r.sales}</td>}{kind === 'analytics' && <td>{r.achieved}</td>}{kind === 'accounts' && <td className="money">{r.balance}</td>}{kind === 'journals' && <td className="text-cocoa">{r.account}</td>}<td><RowActions record={r} label={config.title.slice(0, -1).toLowerCase()} onDelete={() => handleDeleteItem(r.id)}/></td></tr>)}</tbody></table></div> : <div className="kanban-grid">{['Customer','Vendor','Service','Asset','Goods'].filter(group => rows.some((r: any) => r.type === group || r.category === group) || kind === 'contacts').map(group => <div className="kanban-column" key={group}><div className="kanban-head"><span>{group}</span><em>{rows.filter((r: any) => r.type === group || r.category === group).length}</em></div>{rows.filter((r: any) => r.type === group || r.category === group).map((r: any) => <div className="kanban-card" key={r.id}><div><b>{r.name || r.partner}</b><StatusPill status={r.type || r.status || 'Active'}/></div><small>{r.email || r.category || r.account || 'Active'}</small><span>{r.balance || r.sales || r.achieved || 'Active'}</span></div>)}</div>)}</div>}{modal && <CreateModal title={config.action} onClose={() => setModal(false)}><form className="modal-form" onSubmit={handleSave}><Field label={kind === 'accounts' ? 'Account name' : kind === 'journals' ? 'Journal name' : 'Name'} value={nameInput} onChange={setNameInput} placeholder={`Enter ${config.title.toLowerCase()} name`}/><SelectField label="Type" value={typeInput} onChange={setTypeInput} options={kind === 'accounts' ? ['Asset','Liability','Income','Expense','Bank','Cash','Capital'] : kind === 'contacts' ? ['Customer','Vendor'] : ['Goods','Services','General','Sales','Purchase']}/><Field label="Email / Notes" value={descInput} onChange={setDescInput} placeholder="Contact email or optional note"/><div className="modal-actions"><Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button><Button type="submit" testId={`button-save-${kind}`}>Create record</Button></div></form></CreateModal>}</>;
 }
 
 function TransactionList({ type }: { type: 'purchase'|'sales'|'journal' }) {
@@ -543,7 +664,16 @@ function TransactionList({ type }: { type: 'purchase'|'sales'|'journal' }) {
     loadData();
   }, [type]);
 
-  return <><Breadcrumb section={isJournal ? 'Account' : type === 'purchase' ? 'Purchase' : 'Sales'} page={title}/><PageTitle eyebrow={`${isJournal ? 'ACCOUNTING' : type.toUpperCase()} / WORKFLOW`} title={title} detail={`Manage ${singular}s with a clear, considered trail.`} action={<Button onClick={() => setLocation(isJournal ? '/journal-entries/new' : type === 'purchase' ? '/purchase-orders/new' : '/sales-orders/new')} testId={`button-new-${type}`}><Plus size={16}/> New {singular}</Button>}/><div className="toolbar"><div className="search-field"><Search size={16}/><input placeholder={`Search ${title.toLowerCase()}`} data-testid={`input-search-${type}`}/></div><div className="toolbar-right"><Button variant="ghost"><Filter size={15}/> Filter</Button><ViewToggle view={view} setView={setView}/></div></div>{view === 'list' ? <div className="table-card"><table><thead><tr>{(isJournal ? ['Entry','Date','Journal','Memo','Amount','Status'] : ['Number', type === 'purchase' ? 'Vendor' : 'Customer','Date','Items','Total','Status']).map(x => <th key={x}>{x}</th>)}<th/></tr></thead><tbody>{rows.map((r, i) => <tr key={r.id || i} data-testid={`row-${type}-${r.id}`} onClick={() => !isJournal && setLocation(type === 'purchase' ? '/purchase-orders/PO-detail' : '/sales-orders/SO-detail')}><td><div className="cell-primary"><span className="doc-icon">{isJournal ? <BookOpen size={15}/> : <FileText size={15}/>}</span><div><b>{r.entryNo || r.orderNo || r.id}</b><small>{r.no || 'Auto-numbered record'}</small></div></div></td>{isJournal ? <><td>{r.date}</td><td>{r.journalName || r.journal || 'General Journal'}</td><td>{r.reference || r.partner || r.memo || 'Journal Entry'}</td><td className="money">{r.amount || `$${parseFloat(r.debitTotal || '0').toFixed(2)}`}</td></> : <><td>{r.partner}</td><td>{r.date}</td><td>{r.items || r.reference || 'Standard Order'}</td><td className="money">{r.total}</td></>}<td><StatusPill status={r.status || 'Posted'}/></td><td><button className="more-btn"><MoreHorizontal size={17}/></button></td></tr>)}</tbody></table></div> : <div className="kanban-grid transaction-kanban">{statuses.map(s => <div className="kanban-column" key={s}><div className="kanban-head"><span>{s}</span><em>{rows.filter(r => r.status === s).length}</em></div>{rows.filter(r => r.status === s).map(r => <div className="kanban-card" key={r.id}><div><b>{r.entryNo || r.orderNo || r.id}</b><StatusPill status={r.status || 'Posted'}/></div><strong>{r.reference || r.partner || r.memo}</strong><small>{r.date}</small><span>{r.amount || r.total}</span></div>)}</div>)}</div>}</>;
+  const handleDeleteRow = async (id: any) => {
+    try {
+      if (type === 'journal') await api.deleteJournalEntry(id);
+    } catch (err) {
+      console.error('Delete error', err);
+    }
+    setRows(prev => prev.filter(r => (r.id || r.entryNo || r.orderNo) !== id));
+  };
+
+  return <><Breadcrumb section={isJournal ? 'Account' : type === 'purchase' ? 'Purchase' : 'Sales'} page={title}/><PageTitle eyebrow={`${isJournal ? 'ACCOUNTING' : type.toUpperCase()} / WORKFLOW`} title={title} detail={`Manage ${singular}s with a clear, considered trail.`} action={<Button onClick={() => setLocation(isJournal ? '/journal-entries/new' : type === 'purchase' ? '/purchase-orders/new' : '/sales-orders/new')} testId={`button-new-${type}`}><Plus size={16}/> New {singular}</Button>}/><div className="toolbar"><div className="search-field"><Search size={16}/><input placeholder={`Search ${title.toLowerCase()}`} data-testid={`input-search-${type}`}/></div><div className="toolbar-right"><Button variant="ghost"><Filter size={15}/> Filter</Button><ViewToggle view={view} setView={setView}/></div></div>{view === 'list' ? <div className="table-card"><table><thead><tr>{(isJournal ? ['Entry','Date','Journal','Memo','Amount','Status'] : ['Number', type === 'purchase' ? 'Vendor' : 'Customer','Date','Items','Total','Status']).map(x => <th key={x}>{x}</th>)}<th/></tr></thead><tbody>{rows.map((r, i) => <tr key={r.id || i} data-testid={`row-${type}-${r.id}`} onClick={() => !isJournal && setLocation(type === 'purchase' ? '/purchase-orders/PO-detail' : '/sales-orders/SO-detail')}><td><div className="cell-primary"><span className="doc-icon">{isJournal ? <BookOpen size={15}/> : <FileText size={15}/>}</span><div><b>{r.entryNo || r.orderNo || r.id}</b><small>{r.no || 'Auto-numbered record'}</small></div></div></td>{isJournal ? <><td>{r.date}</td><td>{r.journalName || r.journal || 'General Journal'}</td><td>{r.reference || r.partner || r.memo || 'Journal Entry'}</td><td className="money">{r.amount || `$${parseFloat(r.debitTotal || '0').toFixed(2)}`}</td></> : <><td>{r.partner}</td><td>{r.date}</td><td>{r.items || r.reference || 'Standard Order'}</td><td className="money">{r.total}</td></>}<td><StatusPill status={r.status || 'Posted'}/></td><td><RowActions record={r} label={singular} onView={() => !isJournal && setLocation(type === 'purchase' ? '/purchase-orders/PO-detail' : '/sales-orders/SO-detail')} onDelete={() => handleDeleteRow(r.id || r.entryNo || r.orderNo || i)}/></td></tr>)}</tbody></table></div> : <div className="kanban-grid transaction-kanban">{statuses.map(s => <div className="kanban-column" key={s}><div className="kanban-head"><span>{s}</span><em>{rows.filter(r => r.status === s).length}</em></div>{rows.filter(r => r.status === s).map(r => <div className="kanban-card" key={r.id}><div><b>{r.entryNo || r.orderNo || r.id}</b><StatusPill status={r.status || 'Posted'}/></div><strong>{r.reference || r.partner || r.memo}</strong><small>{r.date}</small><span>{r.amount || r.total}</span></div>)}</div>)}</div>}</>;
 }
 
 function DetailForm({ mode }: { mode: 'purchase'|'sales'|'journal' }) {
