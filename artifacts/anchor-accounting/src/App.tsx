@@ -916,29 +916,85 @@ function Portal({ role, setRole }: { role?: Role; setRole?: (r: Role) => void })
 }
 
 function Beacon() { 
-  const [open,setOpen]=useState(false); 
-  const [listening,setListening]=useState(false); 
+  const [open, setOpen] = useState(false); 
+  const [listening, setListening] = useState(false); 
   const [typing, setTyping] = useState(false);
-  const [messages,setMessages]=useState<any[]>([]); 
-  const [input,setInput]=useState(''); 
-  const [,setLocation]=useLocation(); 
+  const [messages, setMessages] = useState<any[]>([]); 
+  const [input, setInput] = useState(''); 
+  const [, setLocation] = useLocation(); 
 
-  const ask=(text:string)=>{ 
-    if(!text.trim()) return; 
-    setMessages(v=>[...v,{from:'user',text}]);
+  const ask = (text: string) => { 
+    if (!text.trim()) return; 
+    const lower = text.toLowerCase();
+    setMessages(v => [...v, { from: 'user', text }]);
     setInput('');
     setTyping(true);
     
     setTimeout(() => {
       setTyping(false);
-      const isUnpaid = text.toLowerCase().includes('unpaid');
-      setMessages(v=>[...v,{
-        from:'beacon',
-        text: isUnpaid ? 'You have 2 unpaid invoices totaling $14,400.00.' : text.toLowerCase().includes('journal')?'Opening journal entries for you.':'The balance sheet is balanced at $117,777.42.',
-        link:text.toLowerCase().includes('journal')?'/journal-entries':text.toLowerCase().includes('balance')?'/reports/balance-sheet':undefined,
-        card: isUnpaid ? 'invoices' : undefined
+      let replyText = "Here is what I found in your workspace.";
+      let route: string | undefined = undefined;
+      let cardType: string | undefined = undefined;
+
+      if (lower.includes('add journal') || lower.includes('create journal') || lower.includes('how do i add journal') || lower.includes('new journal')) {
+        replyText = "Opening the New Journal Entry form now. Enter the date, journal type, memo reference, and debit/credit line amounts.";
+        route = '/journal-entries/new';
+      } else if (lower.includes('journal')) {
+        replyText = "Navigating to Journal Entries. Here you can inspect all double-entry ledger postings.";
+        route = '/journal-entries';
+      } else if (lower.includes('add contact') || lower.includes('new contact') || lower.includes('create contact')) {
+        replyText = "Opening Contacts directory. Click '+ New contact' or fill out the master record modal.";
+        route = '/contacts';
+      } else if (lower.includes('contact') || lower.includes('customer') || lower.includes('vendor')) {
+        replyText = "Navigating to your Contacts directory (Customers & Vendors).";
+        route = '/contacts';
+      } else if (lower.includes('add product') || lower.includes('create product') || lower.includes('new product')) {
+        replyText = "Opening Products catalog. Click '+ New product' to add goods or services to your catalog.";
+        route = '/products';
+      } else if (lower.includes('product') || lower.includes('catalog')) {
+        replyText = "Opening your Products & Services catalog.";
+        route = '/products';
+      } else if (lower.includes('add invoice') || lower.includes('create invoice') || lower.includes('new invoice')) {
+        replyText = "Opening Customer Invoices. Click '+ New customer invoice' to issue a new bill.";
+        route = '/customer-invoices';
+      } else if (lower.includes('unpaid') || lower.includes('invoice')) {
+        replyText = "You have unpaid invoices. Opening Customer Invoices dashboard.";
+        route = '/customer-invoices';
+        cardType = 'invoices';
+      } else if (lower.includes('add bill') || lower.includes('create bill') || lower.includes('vendor bill')) {
+        replyText = "Opening Vendor Bills. Click '+ New vendor bill' to log an incoming bill.";
+        route = '/vendor-bills';
+      } else if (lower.includes('sales order') || lower.includes('sales')) {
+        replyText = "Navigating to Sales Orders workflow.";
+        route = '/sales-orders';
+      } else if (lower.includes('purchase order') || lower.includes('purchase')) {
+        replyText = "Navigating to Purchase Orders workflow.";
+        route = '/purchase-orders';
+      } else if (lower.includes('profit') || lower.includes('p&l') || lower.includes('income')) {
+        replyText = "Opening the Profit & Loss statement report.";
+        route = '/reports/profit-loss';
+      } else if (lower.includes('balance') || lower.includes('sheet')) {
+        replyText = "Opening Balance Sheet report. Total assets equal total liabilities & capital at $117,777.42.";
+        route = '/reports/balance-sheet';
+      } else if (lower.includes('budget')) {
+        replyText = "Navigating to Cost Center Budgets & Analytical Reports.";
+        route = '/budgets';
+      } else if (lower.includes('account') || lower.includes('chart')) {
+        replyText = "Opening Chart of Accounts register.";
+        route = '/chart-of-accounts';
+      }
+
+      setMessages(v => [...v, {
+        from: 'beacon',
+        text: replyText,
+        link: route,
+        card: cardType
       }]);
-    }, 800);
+
+      if (route) {
+        setLocation(route);
+      }
+    }, 600);
   }; 
   
   return <>{open&&<motion.div initial={{opacity:0,scale:.96,y:12}} animate={{opacity:1,scale:1,y:0}} className="beacon-panel">
@@ -947,20 +1003,20 @@ function Beacon() {
       <button className="icon-btn" onClick={()=>setOpen(false)} data-testid="button-close-beacon"><X size={17}/></button>
     </div>
     <div className="beacon-body">
-      {messages.length===0&&<div className="beacon-welcome"><Sparkles size={19}/><p>Ask me to take you somewhere, or ask about your data.</p><div>{['Show unpaid invoices','Go to journal entries','Open balance sheet'].map(s=><button key={s} onClick={()=>ask(s)} data-testid={`button-suggestion-${s.slice(0,4).toLowerCase()}`}>{s}</button>)}</div></div>}
+      {messages.length===0&&<div className="beacon-welcome"><Sparkles size={19}/><p>Ask me to take you somewhere, or ask about your data.</p><div>{['How do I add journal entries','Show unpaid invoices','Go to contacts'].map(s=><button key={s} onClick={()=>ask(s)} data-testid={`button-suggestion-${s.slice(0,4).toLowerCase()}`}>{s}</button>)}</div></div>}
       
       {messages.map((m,i)=><div className={`beacon-message ${m.from}`} key={i}>
         <span>{m.text}</span>
         {m.card === 'invoices' && <div className="beacon-card">
-          <div className="bc-row"><span>INV-0042</span><strong>$9,600.00</strong><Button variant="secondary" className="mini-btn">Pay</Button></div>
-          <div className="bc-row"><span>INV-0041</span><strong>$4,800.00</strong><Button variant="secondary" className="mini-btn">Pay</Button></div>
+          <div className="bc-row"><span>INV/2026/0012</span><strong>$4,800.00</strong><Button variant="secondary" className="mini-btn" onClick={()=>setLocation('/customer-invoices')}>Pay</Button></div>
+          <div className="bc-row"><span>INV/2026/0010</span><strong>$9,600.00</strong><Button variant="secondary" className="mini-btn" onClick={()=>setLocation('/customer-invoices')}>Pay</Button></div>
         </div>}
         {m.link&&<button onClick={()=>setLocation(m.link!)} data-testid="button-beacon-navigation"><ArrowRight size={13}/> Open linked page</button>}
       </div>)}
       {typing && <div className="beacon-message beacon"><div className="typing-indicator"><span/><span/><span/></div></div>}
     </div>
     <form className="beacon-input" onSubmit={e=>{e.preventDefault();ask(input)}}>
-      <input value={input} onChange={e=>setInput(e.target.value)} placeholder="Ask Beacon anything"/>
+      <input value={input} onChange={e=>setInput(e.target.value)} placeholder="Ask Beacon anything... (e.g. 'how do I add journal')"/>
       <button type="button" className={listening?'listening':''} onClick={()=>{setListening(true);window.setTimeout(()=>setListening(false),1400)}} data-testid="button-beacon-mic"><Zap size={15}/></button>
     </form>
   </motion.div>}
