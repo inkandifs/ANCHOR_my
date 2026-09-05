@@ -63,12 +63,38 @@ function AppShell({ children, role, setRole }: { children: ReactNode; role: Role
   const [collapsed, setCollapsed] = useState(false);
   const [open, setOpen] = useState<string[]>(['Account', 'Sales', 'Purchase', 'Reports']);
   const toggle = (label: string) => setOpen(v => v.includes(label) ? v.filter(i => i !== label) : [...v, label]);
-  if (role === 'User') return <>{children}</>;
+  
+  if (role === 'User') {
+    return <>
+      <Portal role={role} setRole={setRole}/>
+      <Beacon/>
+    </>;
+  }
+
   return <div className={`app-shell ${collapsed ? 'shell-collapsed' : ''}`}>
     <header className="topbar">
       <Link href="/dashboard" className="brand-lockup" data-testid="link-dashboard-logo"><Logo/><span>ANCHOR</span></Link>
       <div className="topbar-center"><span className="workspace-dot"/><span>Hearth & Form Studio</span><ChevronDown size={14}/></div>
-      <div className="topbar-actions"><button className="icon-btn" data-testid="button-notifications"><Bell size={17}/><i/></button><button className="avatar" data-testid="button-profile">{role[0]}</button><span className="role-badge">{role}</span><button className="icon-btn" data-testid="button-logout" onClick={() => setLocation('/')}><LogOut size={16}/></button></div>
+      <div className="topbar-actions">
+        <button className="icon-btn" data-testid="button-notifications"><Bell size={17}/><i/></button>
+        
+        {/* Role Selector dropdown */}
+        <div className="role-switcher-dropdown">
+          <select value={role} onChange={e => {
+            const newRole = e.target.value as Role;
+            setRole(newRole);
+            if (newRole === 'User') setLocation('/portal');
+            else if (location === '/portal') setLocation('/dashboard');
+          }} className="role-badge-select" data-testid="select-active-role">
+            <option value="Admin">Admin Role</option>
+            <option value="Accountant">Accountant Role</option>
+            <option value="User">User Role</option>
+          </select>
+        </div>
+
+        <button className="avatar" data-testid="button-profile">{role[0]}</button>
+        <button className="icon-btn" data-testid="button-logout" onClick={() => setLocation('/')} title="Sign out"><LogOut size={16}/></button>
+      </div>
     </header>
     <aside className="sidebar">
       <button className="collapse-btn" onClick={() => setCollapsed(!collapsed)} data-testid="button-collapse-sidebar"><PanelLeft size={17}/></button>
@@ -83,8 +109,8 @@ function AppShell({ children, role, setRole }: { children: ReactNode; role: Role
           </div>;
         })}
         <div className="side-caption side-caption-spaced">Manage</div>
-        {role === 'Admin' && <Link href="/users/new" className={`nav-parent ${location === '/users/new' ? 'active' : ''}`} data-testid="link-nav-users"><UserPlus size={17}/><span>Users</span></Link>}
-        <Link href="/portal" className="nav-parent" data-testid="link-nav-portal"><BriefcaseBusiness size={17}/><span>Customer portal</span></Link>
+        {role === 'Admin' && <Link href="/users/new" className={`nav-parent ${location === '/users/new' ? 'active' : ''}`} data-testid="link-nav-users"><UserPlus size={17}/><span>Create User</span></Link>}
+        <Link href="/portal" className={`nav-parent ${location === '/portal' ? 'active' : ''}`} data-testid="link-nav-portal"><BriefcaseBusiness size={17}/><span>Customer Portal</span></Link>
       </div>
       <div className="sidebar-foot"><button className="nav-parent" data-testid="button-help"><LifeBuoy size={17}/><span>Help center</span></button><button className="nav-parent" data-testid="button-settings"><Settings size={17}/><span>Settings</span></button></div>
     </aside>
@@ -128,13 +154,13 @@ function Landing() {
 function AuthLayout({ children, aside }: { children: ReactNode; aside: ReactNode }) {
   return <div className="auth-page noise"><div className="auth-aside"><Link href="/" className="brand-lockup brand-dark"><Logo/><span>ANCHOR</span></Link><div className="auth-quote"><span className="eyebrow">ANCHOR / PRIVATE WORKSPACE</span><h2>Good records make<br/><i>good decisions.</i></h2><p>Tools for the people who keep a business moving.</p></div><div className="auth-aside-foot">A quiet place to run the books <span>↗</span></div></div><main className="auth-main"><div className="auth-card">{aside}{children}</div></main></div>;
 }
-function Login() {
+function Login({ role, setRole }: { role: Role; setRole: (r: Role) => void }) {
   const [, setLocation] = useLocation(); const [error, setError] = useState(false); const [login, setLogin] = useState('');
-  return <AuthLayout aside={<div className="auth-logo"><Logo large/></div>}><div className="eyebrow">WELCOME BACK</div><h1>Sign in to ANCHOR</h1><p className="auth-sub">Your workspace is ready when you are.</p>{error && <div className="error-banner"><X size={16}/><span><b>Invalid Login Id or Password</b><small>Check your details and try again.</small></span></div>}<form className="auth-form" onSubmit={e => { e.preventDefault(); login ? setLocation('/dashboard') : setError(true); }}><Field label="Login ID" placeholder="mara.chen" value={login} onChange={setLogin}/><Field label="Password" placeholder="Enter your password" type="password"/><div className="form-row-between"><label className="check-label"><input type="checkbox"/> Keep me signed in</label><Link href="/forgot-password" className="text-link" data-testid="link-forgot-password">Forgot password?</Link></div><Button type="submit" className="w-full" testId="button-login">Sign in <ArrowRight size={15}/></Button></form><p className="auth-switch">New to ANCHOR? <Link href="/signup" className="text-link" data-testid="link-signup">Create a workspace</Link></p><div className="auth-security"><ShieldCheck size={14}/> Secure workspace · Role-based access</div></AuthLayout>;
+  return <AuthLayout aside={<div className="auth-logo"><Logo large/></div>}><div className="eyebrow">WELCOME BACK</div><h1>Sign in to ANCHOR</h1><p className="auth-sub">Your workspace is ready when you are.</p>{error && <div className="error-banner"><X size={16}/><span><b>Invalid Login Id or Password</b><small>Check your details and try again.</small></span></div>}<div className="sso-buttons"><Button variant="secondary" className="w-full" testId="button-sso-google">Continue with Google</Button><Button variant="secondary" className="w-full" testId="button-sso-microsoft">Continue with Microsoft</Button></div><div className="auth-divider"><span>or sign in with email</span></div><form className="auth-form" onSubmit={e => { e.preventDefault(); if (login) { setLocation(role === 'User' ? '/portal' : '/dashboard'); } else setError(true); }}><Field label="Login ID" placeholder="mara.chen" value={login} onChange={setLogin}/><Field label="Password" placeholder="Enter your password" type="password"/><div className="role-selector"><span>Role</span><div>{(['Admin','Accountant','User'] as Role[]).map(r => <button type="button" key={r} className={role === r ? 'selected' : ''} onClick={() => setRole(r)} data-testid={`button-role-${r.toLowerCase()}`}>{r}</button>)}</div></div><div className="form-row-between"><label className="check-label"><input type="checkbox"/> Keep me signed in</label><Link href="/forgot-password" className="text-link" data-testid="link-forgot-password">Forgot password?</Link></div><Button type="submit" className="w-full" testId="button-login">Sign in <ArrowRight size={15}/></Button></form><p className="auth-switch">New to ANCHOR? <Link href="/signup" className="text-link" data-testid="link-signup">Create a workspace</Link></p><div className="auth-security"><ShieldCheck size={14}/> Secure workspace · Role-based access</div></AuthLayout>;
 }
-function Signup() {
-  const [, setLocation] = useLocation(); const [role, setRole] = useState<Role>('User'); const [name, setName] = useState(''); const [mismatch, setMismatch] = useState(false);
-  return <AuthLayout aside={<div className="auth-logo"><Logo large/></div>}><div className="eyebrow">CREATE AN ACCOUNT</div><h1>Set your anchor.</h1><p className="auth-sub">Public accounts start with the User role. Your admin can refine access later.</p><form className="auth-form signup-form" onSubmit={e => { e.preventDefault(); setLocation('/portal'); }}><Field label="Name" placeholder="Mara Chen" value={name} onChange={setName}/><div className="two-fields"><Field label="Login ID" placeholder="mara.chen" helper="6–12 characters · must be unique"/><Field label="Email" placeholder="mara@hearthandform.co" helper="Must not be a duplicate"/></div><div className="two-fields"><Field label="Password" placeholder="••••••••" type="password" helper="8+ chars · lowercase · uppercase · special"/><Field label="Re-enter Password" placeholder="••••••••" type="password" error={mismatch ? 'Passwords do not match' : undefined}/></div><div className="role-selector"><span>Role</span><div>{(['Admin','Accountant','User'] as Role[]).map(r => <button type="button" key={r} className={role === r ? 'selected' : ''} onClick={() => setRole(r)} data-testid={`button-role-${r.toLowerCase()}`}>{r}{r === 'User' && <small>recommended</small>}</button>)}</div><small>Public signups are provisioned as User accounts.</small></div><Button type="submit" className="w-full" testId="button-create-account">Create account <ArrowRight size={15}/></Button></form><p className="auth-switch">Already have access? <Link href="/login" className="text-link" data-testid="link-login">Sign in</Link></p></AuthLayout>;
+function Signup({ role, setRole }: { role: Role; setRole: (r: Role) => void }) {
+  const [, setLocation] = useLocation(); const [name, setName] = useState(''); const [mismatch, setMismatch] = useState(false); const [pwd, setPwd] = useState('');
+  return <AuthLayout aside={<div className="auth-logo"><Logo large/></div>}><div className="eyebrow">CREATE AN ACCOUNT</div><h1>Set your anchor.</h1><p className="auth-sub">Choose your role to enter the workspace.</p><form className="auth-form signup-form" onSubmit={e => { e.preventDefault(); setLocation(role === 'User' ? '/portal' : '/dashboard'); }}><div className="two-fields"><Field label="Full Name" placeholder="Mara Chen" value={name} onChange={setName}/><Field label="Company Name" placeholder="Hearth & Form Studio"/></div><div className="two-fields"><Field label="Login ID" placeholder="mara.chen" helper="6–12 characters · must be unique"/><Field label="Email" placeholder="mara@hearthandform.co" helper="Must not be a duplicate"/></div><Field label="Billing Address" placeholder="123 Main St, Suite 400, New York, NY 10001"/><div className="two-fields"><Field label="Password" placeholder="••••••••" type="password" value={pwd} onChange={setPwd} helper="8+ chars · lowercase · uppercase · special"/><Field label="Re-enter Password" placeholder="••••••••" type="password" error={mismatch ? 'Passwords do not match' : undefined}/></div>{pwd.length > 0 && <div className="password-strength"><div className={`strength-bar ${pwd.length > 8 ? 'strong' : pwd.length > 4 ? 'medium' : 'weak'}`}></div><small>{pwd.length > 8 ? 'Strong password' : pwd.length > 4 ? 'Moderate password' : 'Weak password'}</small></div>}<div className="role-selector"><span>Role</span><div>{(['Admin','Accountant','User'] as Role[]).map(r => <button type="button" key={r} className={role === r ? 'selected' : ''} onClick={() => setRole(r)} data-testid={`button-role-${r.toLowerCase()}`}>{r}</button>)}</div><small>Select your workspace role.</small></div><Button type="submit" className="w-full" testId="button-create-account">Create account <ArrowRight size={15}/></Button></form><p className="auth-switch">Already have access? <Link href="/login" className="text-link" data-testid="link-login">Sign in</Link></p></AuthLayout>;
 }
 function ForgotPassword() { const [sent, setSent] = useState(false); return <AuthLayout aside={<div className="auth-logo"><Logo large/></div>}><div className="eyebrow">ACCOUNT RECOVERY</div><h1>Reset your password.</h1><p className="auth-sub">We will send a secure reset link to the address on your workspace.</p>{sent ? <div className="success-card"><Check size={18}/><b>Check your inbox.</b><p>If that address is on file, a reset link is on its way.</p></div> : <form className="auth-form" onSubmit={e => {e.preventDefault(); setSent(true);}}><Field label="Email address" placeholder="you@company.com"/><Button type="submit" className="w-full" testId="button-send-reset">Send reset link <ArrowRight size={15}/></Button></form>}<p className="auth-switch"><Link href="/login" className="text-link" data-testid="link-back-login"><ArrowLeft size={14}/> Back to sign in</Link></p></AuthLayout>; }
 
@@ -187,17 +213,193 @@ function ReportSection({title,rows,total}:{title:string;rows:string[][];total:st
 
 function UserPage() { const [,setLocation]=useLocation(); return <><Breadcrumb section="Manage" page="Create user"/><PageTitle eyebrow="ADMIN / ACCESS" title="Create user" detail="Invite someone into the workspace with the right level of reach."/><div className="form-card user-form"><div className="card-section-head"><div><span className="eyebrow">NEW WORKSPACE MEMBER</span><h3>Identity & access</h3></div><span className="row-icon"><UserPlus size={18}/></span></div><div className="form-grid"><Field label="Name" placeholder="Eli Brooks"/><Field label="Login ID" placeholder="eli.brooks" helper="6–12 characters · must be unique"/><Field label="E-mail" placeholder="eli@company.com" helper="Must not be a duplicate"/><SelectField label="Role" options={['User','Accountant','Administrator']}/><Field label="Password" placeholder="••••••••" type="password" helper="8+ chars · lowercase · uppercase · special"/><Field label="Re-enter password" placeholder="••••••••" type="password"/></div><div className="form-card-note"><ShieldCheck size={15}/> Admin and Accountant accounts are created internally. Public signups always start as User.</div><div className="form-actions"><Button variant="secondary" onClick={() => setLocation('/dashboard')}>Cancel</Button><Button onClick={() => setLocation('/dashboard')} testId="button-create-user">Create user <ArrowRight size={15}/></Button></div></div></>; }
 
-function Portal() { const [rows,setRows]=useState(customerInvoices); const [menu,setMenu]=useState(false); return <div className="portal-page"><header className="portal-bar"><Link href="/" className="brand-lockup brand-dark" data-testid="link-portal-logo"><Logo/><span>ANCHOR</span></Link><span className="portal-divider"/><span className="portal-workspace">Hearth & Form Studio</span><div className="portal-right"><button className="icon-btn"><HelpCircle size={17}/></button><button className="portal-account" onClick={()=>setMenu(!menu)} data-testid="button-portal-account"><span className="avatar avatar-small">MC</span>Mara Chen<ChevronDown size={14}/></button>{menu&&<div className="account-menu"><Link href="/forgot-password" data-testid="link-portal-reset">Reset password</Link><Link href="/" data-testid="link-portal-logout">Log out</Link></div>}</div></header><main className="portal-main"><div className="eyebrow">CUSTOMER PORTAL</div><h1>Your invoices, in one place.</h1><p className="portal-lede">Hello Mara. Here is the current view of your account with Hearth & Form Studio.</p><div className="portal-summary"><div><span>Open balance</span><strong>$14,400.00</strong></div><div><span>Next due</span><strong>Apr 09, 2026</strong></div><div><span>Account status</span><strong className="green-text">In good standing</strong></div></div><div className="portal-table"><div className="portal-table-head"><span>Invoice</span><span>Invoice date</span><span>Due date</span><span>Amount due</span><span>Status</span><span/></div>{rows.map(r=><div className="portal-row" key={r.id} data-testid={`portal-invoice-${r.id}`}><div><b>{r.id}</b><small>{r.no}</small></div><span>{r.date}</span><span>{r.due}</span><strong>{r.status==='Paid' ? '$0.00' : r.total}</strong><StatusPill status={r.status}/><Button variant={r.status==='Paid'?'ghost':'primary'} className="mini-btn" onClick={()=>setRows(rows.map(x=>x.id===r.id?{...x,status:'Paid',paid:x.total}:x))} testId={`button-portal-pay-${r.id}`}>{r.status==='Paid'?'Paid':'Pay now'}</Button></div>)}</div><div className="portal-note"><ShieldCheck size={16}/><span><b>Payments are secure.</b> Your payment is recorded directly to the workspace ledger.</span></div></main></div>; }
+function Portal({ role, setRole }: { role?: Role; setRole?: (r: Role) => void }) { 
+  const [rows,setRows]=useState(customerInvoices); 
+  const [menu,setMenu]=useState(false); 
+  const [tab, setTab] = useState<'invoices'|'ledger'>('invoices');
+  const [, setLocation] = useLocation();
+  
+  return <div className="portal-page">
+    <header className="portal-bar">
+      <Link href="/" className="brand-lockup brand-dark" data-testid="link-portal-logo"><Logo/><span>ANCHOR</span></Link>
+      <span className="portal-divider"/><span className="portal-workspace">Hearth & Form Studio</span>
+      <div className="portal-right">
+        {role && setRole && (
+          <div className="role-switcher-dropdown">
+            <select value={role} onChange={e => {
+              const newRole = e.target.value as Role;
+              setRole(newRole);
+              if (newRole !== 'User') setLocation('/dashboard');
+            }} className="role-badge-select" data-testid="select-portal-role">
+              <option value="Admin">Admin Role</option>
+              <option value="Accountant">Accountant Role</option>
+              <option value="User">User Role</option>
+            </select>
+          </div>
+        )}
+        <button className="icon-btn"><HelpCircle size={17}/></button>
+        <button className="portal-account" onClick={()=>setMenu(!menu)} data-testid="button-portal-account">
+          <span className="avatar avatar-small">MC</span>Mara Chen<ChevronDown size={14}/>
+        </button>
+        {menu&&<div className="account-menu">
+          <Link href="/forgot-password" data-testid="link-portal-reset">Password Reset</Link>
+          <Link href="/" data-testid="link-portal-logout">Log Out</Link>
+        </div>}
+      </div>
+    </header>
+    <main className="portal-main-grid">
+      <div className="portal-content">
+        <div className="eyebrow">CUSTOMER PORTAL</div>
+        <h1>Your account, in one place.</h1>
+        <p className="portal-lede">Hello Mara. Here is the current view of your account with Hearth & Form Studio.</p>
+        
+        <div className="portal-summary">
+          <div><span>Open balance</span><strong>$14,400.00</strong></div>
+          <div><span>Next due</span><strong>Apr 09, 2026</strong></div>
+          <div><span>Account status</span><strong className="green-text">In good standing</strong></div>
+        </div>
+        
+        <div className="portal-tabs">
+          <button className={tab === 'invoices' ? 'active' : ''} onClick={() => setTab('invoices')}>Invoices</button>
+          <button className={tab === 'ledger' ? 'active' : ''} onClick={() => setTab('ledger')}>Recent Payments</button>
+        </div>
 
-function Beacon() { const [open,setOpen]=useState(false); const [listening,setListening]=useState(false); const [messages,setMessages]=useState<{from:'user'|'beacon';text:string;link?:string}[]>([]); const [input,setInput]=useState(''); const [,setLocation]=useLocation(); const ask=(text:string)=>{ if(!text.trim()) return; setMessages(v=>[...v,{from:'user',text},{from:'beacon',text:text.toLowerCase().includes('unpaid')?'You have 2 unpaid invoices totaling $14,400.00.':text.toLowerCase().includes('journal')?'Opening journal entries for you.':'The balance sheet is balanced at $117,777.42.',link:text.toLowerCase().includes('journal')?'/journal-entries':text.toLowerCase().includes('balance')?'/reports/balance-sheet':undefined}]);setInput('');}; return <>{open&&<motion.div initial={{opacity:0,scale:.96,y:12}} animate={{opacity:1,scale:1,y:0}} className="beacon-panel"><div className="beacon-head"><div className="beacon-title"><span className="beacon-symbol"><Zap size={16}/></span><div><b>Beacon</b><small>Ready when you are</small></div></div><button className="icon-btn" onClick={()=>setOpen(false)} data-testid="button-close-beacon"><X size={17}/></button></div><div className="beacon-body">{messages.length===0&&<div className="beacon-welcome"><Sparkles size={19}/><p>Ask me to take you somewhere, or ask about your data.</p><div>{['Show unpaid invoices','Go to journal entries','Open balance sheet'].map(s=><button key={s} onClick={()=>ask(s)} data-testid={`button-suggestion-${s.slice(0,4).toLowerCase()}`}>{s}</button>)}</div></div>}{messages.map((m,i)=><div className={`beacon-message ${m.from}`} key={i}><span>{m.text}</span>{m.link&&<button onClick={()=>setLocation(m.link!)} data-testid="button-beacon-navigation"><ArrowRight size={13}/> Open linked page</button>}</div>)}</div><form className="beacon-input" onSubmit={e=>{e.preventDefault();ask(input)}}><input value={input} onChange={e=>setInput(e.target.value)} placeholder="Ask Beacon anything"/><button type="button" className={listening?'listening':''} onClick={()=>{setListening(true);window.setTimeout(()=>setListening(false),1400)}} data-testid="button-beacon-mic"><Zap size={15}/></button></form></motion.div>}<button className={`beacon-trigger beacon-pulse ${open?'active':''}`} onClick={()=>setOpen(!open)} data-testid="button-open-beacon"><Zap size={20}/><span>Beacon</span></button></>; }
+        {tab === 'invoices' ? (
+          <div className="portal-table">
+            <div className="portal-table-head"><span>Invoice</span><span>Invoice date</span><span>Due date</span><span>Amount due</span><span>Status</span><span/></div>
+            {rows.map(r=><div className="portal-row" key={r.id} data-testid={`portal-invoice-${r.id}`}>
+              <div><b>{r.id}</b><small>{r.no}</small></div>
+              <span>{r.date}</span><span>{r.due}</span>
+              <strong>{r.status==='Paid' ? '$0.00' : r.total}</strong>
+              <StatusPill status={r.status}/>
+              <div className="portal-row-actions">
+                <button className="icon-btn" title="Download PDF"><Download size={15}/></button>
+                <Button variant={r.status==='Paid'?'ghost':'primary'} className="mini-btn" onClick={()=>setRows(rows.map(x=>x.id===r.id?{...x,status:'Paid',paid:x.total}:x))} testId={`button-portal-pay-${r.id}`}>{r.status==='Paid'?'Paid':'Pay now'}</Button>
+              </div>
+            </div>)}
+          </div>
+        ) : (
+          <div className="portal-table">
+            <div className="portal-table-head"><span>Payment Date</span><span>Reference</span><span>Method</span><span>Amount</span><span/></div>
+            <div className="portal-row"><span>Mar 12, 2026</span><span>INV-0032</span><span>Credit Card (...4242)</span><strong>$2,400.00</strong><StatusPill status="Confirmed"/></div>
+            <div className="portal-row"><span>Feb 10, 2026</span><span>INV-0028</span><span>ACH Transfer</span><strong>$4,800.00</strong><StatusPill status="Confirmed"/></div>
+          </div>
+        )}
+        <div className="portal-note"><ShieldCheck size={16}/><span><b>Payments are secure.</b> Your payment is recorded directly to the workspace ledger.</span></div>
+      </div>
+      
+      <aside className="portal-sidebar">
+        <div className="sidebar-card">
+          <h3>Billing Information</h3>
+          <p>Mara Chen<br/>Hearth & Form Studio<br/>123 Main St, Suite 400<br/>New York, NY 10001</p>
+          <button className="text-link mt-2">Update details</button>
+        </div>
+        <div className="sidebar-card">
+          <h3>Contact Accountant</h3>
+          <form className="contact-form" onSubmit={e => {e.preventDefault(); alert("Message sent");}}>
+            <textarea placeholder="How can we help?" rows={3}/>
+            <Button type="submit" className="w-full">Send Message</Button>
+          </form>
+        </div>
+      </aside>
+    </main>
+  </div>;
+}
+
+function Beacon() { 
+  const [open,setOpen]=useState(false); 
+  const [listening,setListening]=useState(false); 
+  const [typing, setTyping] = useState(false);
+  const [messages,setMessages]=useState<any[]>([]); 
+  const [input,setInput]=useState(''); 
+  const [,setLocation]=useLocation(); 
+
+  const ask=(text:string)=>{ 
+    if(!text.trim()) return; 
+    setMessages(v=>[...v,{from:'user',text}]);
+    setInput('');
+    setTyping(true);
+    
+    setTimeout(() => {
+      setTyping(false);
+      const isUnpaid = text.toLowerCase().includes('unpaid');
+      setMessages(v=>[...v,{
+        from:'beacon',
+        text: isUnpaid ? 'You have 2 unpaid invoices totaling $14,400.00.' : text.toLowerCase().includes('journal')?'Opening journal entries for you.':'The balance sheet is balanced at $117,777.42.',
+        link:text.toLowerCase().includes('journal')?'/journal-entries':text.toLowerCase().includes('balance')?'/reports/balance-sheet':undefined,
+        card: isUnpaid ? 'invoices' : undefined
+      }]);
+    }, 800);
+  }; 
+  
+  return <>{open&&<motion.div initial={{opacity:0,scale:.96,y:12}} animate={{opacity:1,scale:1,y:0}} className="beacon-panel">
+    <div className="beacon-head">
+      <div className="beacon-title"><span className="beacon-symbol"><Zap size={16}/></span><div><b>Beacon</b><small>Ready when you are</small></div></div>
+      <button className="icon-btn" onClick={()=>setOpen(false)} data-testid="button-close-beacon"><X size={17}/></button>
+    </div>
+    <div className="beacon-body">
+      {messages.length===0&&<div className="beacon-welcome"><Sparkles size={19}/><p>Ask me to take you somewhere, or ask about your data.</p><div>{['Show unpaid invoices','Go to journal entries','Open balance sheet'].map(s=><button key={s} onClick={()=>ask(s)} data-testid={`button-suggestion-${s.slice(0,4).toLowerCase()}`}>{s}</button>)}</div></div>}
+      
+      {messages.map((m,i)=><div className={`beacon-message ${m.from}`} key={i}>
+        <span>{m.text}</span>
+        {m.card === 'invoices' && <div className="beacon-card">
+          <div className="bc-row"><span>INV-0042</span><strong>$9,600.00</strong><Button variant="secondary" className="mini-btn">Pay</Button></div>
+          <div className="bc-row"><span>INV-0041</span><strong>$4,800.00</strong><Button variant="secondary" className="mini-btn">Pay</Button></div>
+        </div>}
+        {m.link&&<button onClick={()=>setLocation(m.link!)} data-testid="button-beacon-navigation"><ArrowRight size={13}/> Open linked page</button>}
+      </div>)}
+      {typing && <div className="beacon-message beacon"><div className="typing-indicator"><span/><span/><span/></div></div>}
+    </div>
+    <form className="beacon-input" onSubmit={e=>{e.preventDefault();ask(input)}}>
+      <input value={input} onChange={e=>setInput(e.target.value)} placeholder="Ask Beacon anything"/>
+      <button type="button" className={listening?'listening':''} onClick={()=>{setListening(true);window.setTimeout(()=>setListening(false),1400)}} data-testid="button-beacon-mic"><Zap size={15}/></button>
+    </form>
+  </motion.div>}
+  <button className={`beacon-trigger beacon-pulse ${open?'active':''}`} onClick={()=>setOpen(!open)} data-testid="button-open-beacon"><Zap size={20}/><span>Beacon</span></button></>; 
+}
 
 function RoutedApp() {
-  const [role,setRole]=useState<Role>(() => (localStorage.getItem('anchor-role') as Role) || 'Admin'); const [location] = useLocation();
+  const [role, setRoleState] = useState<Role>(() => (localStorage.getItem('anchor-role') as Role) || 'Admin');
+  const [location] = useLocation();
+  const setRole = (r: Role) => { setRoleState(r); localStorage.setItem('anchor-role', r); };
+  
   const auth = ['/','/login','/signup','/forgot-password'].includes(location);
-  if (auth) return <Switch><Route path="/" component={Landing}/><Route path="/login" component={Login}/><Route path="/signup" component={Signup}/><Route path="/forgot-password" component={ForgotPassword}/></Switch>;
-  if (location === '/portal') return <Portal/>;
-  return <AppShell role={role} setRole={(r)=>{setRole(r);localStorage.setItem('anchor-role',r)}}><Switch>
-    <Route path="/dashboard" component={Dashboard}/><Route path="/users/new" component={UserPage}/><Route path="/contacts" component={()=><MasterPage kind="contacts"/>}/><Route path="/products" component={()=><MasterPage kind="products"/>}/><Route path="/analytics" component={()=><MasterPage kind="analytics"/>}/><Route path="/chart-of-accounts" component={()=><MasterPage kind="accounts"/>}/><Route path="/journals" component={()=><MasterPage kind="journals"/>}/><Route path="/journal-entries" component={()=><TransactionList type="journal"/>}/><Route path="/journal-entries/new" component={()=><DetailForm mode="journal"/>}/><Route path="/purchase-orders" component={()=><TransactionList type="purchase"/>}/><Route path="/purchase-orders/new" component={()=><DetailForm mode="purchase"/>}/><Route path="/purchase-orders/:id" component={()=><DetailForm mode="purchase"/>}/><Route path="/vendor-bills" component={()=><BillingPage mode="bill"/>}/><Route path="/sales-orders" component={()=><TransactionList type="sales"/>}/><Route path="/sales-orders/new" component={()=><DetailForm mode="sales"/>}/><Route path="/sales-orders/:id" component={()=><DetailForm mode="sales"/>}/><Route path="/customer-invoices" component={()=><BillingPage mode="invoice"/>}/><Route path="/budgets" component={BudgetsPage}/><Route path="/analytical-budgets-report" component={AnalyticalReport}/><Route path="/reports/profit-loss" component={()=><ReportsPage type="pl"/>}/><Route path="/reports/balance-sheet" component={()=><ReportsPage type="bs"/>}/><Route path="/portal" component={Portal}/><Route component={Dashboard}/></Switch></AppShell>;
+  if (auth) return <Switch><Route path="/" component={Landing}/><Route path="/login" component={() => <Login role={role} setRole={setRole}/>}/><Route path="/signup" component={() => <Signup role={role} setRole={setRole}/>}/><Route path="/forgot-password" component={ForgotPassword}/></Switch>;
+  
+  if (role === 'User') {
+    return <>
+      <Portal role={role} setRole={setRole}/>
+      <Beacon/>
+    </>;
+  }
+
+  return <AppShell role={role} setRole={setRole}>
+    <Switch>
+      <Route path="/dashboard" component={Dashboard}/>
+      {role === 'Admin' && <Route path="/users/new" component={UserPage}/>}
+      <Route path="/contacts" component={()=><MasterPage kind="contacts"/>}/>
+      <Route path="/products" component={()=><MasterPage kind="products"/>}/>
+      <Route path="/analytics" component={()=><MasterPage kind="analytics"/>}/>
+      <Route path="/chart-of-accounts" component={()=><MasterPage kind="accounts"/>}/>
+      <Route path="/journals" component={()=><MasterPage kind="journals"/>}/>
+      <Route path="/journal-entries" component={()=><TransactionList type="journal"/>}/>
+      <Route path="/journal-entries/new" component={()=><DetailForm mode="journal"/>}/>
+      <Route path="/purchase-orders" component={()=><TransactionList type="purchase"/>}/>
+      <Route path="/purchase-orders/new" component={()=><DetailForm mode="purchase"/>}/>
+      <Route path="/purchase-orders/:id" component={()=><DetailForm mode="purchase"/>}/>
+      <Route path="/vendor-bills" component={()=><BillingPage mode="bill"/>}/>
+      <Route path="/sales-orders" component={()=><TransactionList type="sales"/>}/>
+      <Route path="/sales-orders/new" component={()=><DetailForm mode="sales"/>}/>
+      <Route path="/sales-orders/:id" component={()=><DetailForm mode="sales"/>}/>
+      <Route path="/customer-invoices" component={()=><BillingPage mode="invoice"/>}/>
+      <Route path="/budgets" component={BudgetsPage}/>
+      <Route path="/analytical-budgets-report" component={AnalyticalReport}/>
+      <Route path="/reports/profit-loss" component={()=><ReportsPage type="pl"/>}/>
+      <Route path="/reports/balance-sheet" component={()=><ReportsPage type="bs"/>}/>
+      <Route path="/portal" component={() => <Portal role={role} setRole={setRole}/>}/>
+      <Route component={Dashboard}/>
+    </Switch>
+  </AppShell>;
 }
 function App() { return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/,'')}><ErrorBoundary><RoutedApp/></ErrorBoundary></WouterRouter><Toaster/></TooltipProvider></QueryClientProvider>; }
 export default App;
