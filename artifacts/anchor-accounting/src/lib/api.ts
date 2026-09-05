@@ -45,7 +45,9 @@ export const api = {
 
   // Accounting
   getAccounts: () => apiFetch<{ success: boolean; accounts: any[] }>("/chart-of-accounts"),
+  createAccount: (data: any) => apiFetch<{ success: boolean; account: any }>("/chart-of-accounts", { method: "POST", body: JSON.stringify(data) }),
   getJournals: () => apiFetch<{ success: boolean; journals: any[] }>("/journals"),
+  createJournal: (data: any) => apiFetch<{ success: boolean; journal: any }>("/journals", { method: "POST", body: JSON.stringify(data) }),
   getJournalEntries: () => apiFetch<{ success: boolean; journalEntries: any[] }>("/journal-entries"),
   createJournalEntry: (data: any) => apiFetch<{ success: boolean; journalEntry: any }>("/journal-entries", { method: "POST", body: JSON.stringify(data) }),
 
