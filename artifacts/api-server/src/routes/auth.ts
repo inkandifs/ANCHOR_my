@@ -1,11 +1,11 @@
 import { Router, type IRouter } from "express";
-import { memoryStore } from "../lib/store";
+import { memoryStore, saveStore } from "../lib/store";
 
 const router: IRouter = Router();
 
 router.post("/auth/login", (req, res) => {
   const { loginId } = req.body;
-  const user = memoryStore.users.find(u => u.loginId === loginId || u.email === loginId);
+  const user = memoryStore.users.find((u: any) => u.loginId === loginId || u.email === loginId);
   if (user) {
     return res.json({ success: true, user });
   }
@@ -27,6 +27,7 @@ router.post("/auth/signup", (req, res) => {
     billingAddress: billingAddress || ""
   };
   memoryStore.users.push(newUser);
+  saveStore();
   return res.status(201).json({ success: true, user: newUser });
 });
 

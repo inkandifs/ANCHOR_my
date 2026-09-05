@@ -4,8 +4,8 @@ import { memoryStore } from "../lib/store";
 const router: IRouter = Router();
 
 router.get("/reports/profit-loss", (_req, res) => {
-  const totalRevenue = memoryStore.customerInvoices.reduce((sum, inv) => sum + parseFloat(inv.totalAmount || "0"), 0);
-  const totalExpenses = memoryStore.vendorBills.reduce((sum, bill) => sum + parseFloat(bill.totalAmount || "0"), 0);
+  const totalRevenue = memoryStore.customerInvoices.reduce((sum: number, inv: any) => sum + parseFloat(inv.totalAmount || "0"), 0);
+  const totalExpenses = memoryStore.vendorBills.reduce((sum: number, bill: any) => sum + parseFloat(bill.totalAmount || "0"), 0);
   const netIncome = totalRevenue - totalExpenses;
 
   res.json({
@@ -27,13 +27,13 @@ router.get("/reports/profit-loss", (_req, res) => {
 });
 
 router.get("/reports/balance-sheet", (_req, res) => {
-  const assets = memoryStore.accounts.filter(a => a.type === "Asset");
-  const liabilities = memoryStore.accounts.filter(a => a.type === "Liability");
-  const equity = memoryStore.accounts.filter(a => a.type === "Equity");
+  const assets = memoryStore.accounts.filter((a: any) => a.type === "Asset");
+  const liabilities = memoryStore.accounts.filter((a: any) => a.type === "Liability");
+  const equity = memoryStore.accounts.filter((a: any) => a.type === "Equity");
 
-  const totalAssets = assets.reduce((sum, a) => sum + parseFloat(a.balance || "0"), 0);
-  const totalLiabilities = liabilities.reduce((sum, a) => sum + parseFloat(a.balance || "0"), 0);
-  const totalEquity = equity.reduce((sum, a) => sum + parseFloat(a.balance || "0"), 0);
+  const totalAssets = assets.reduce((sum: number, a: any) => sum + parseFloat(a.balance || "0"), 0);
+  const totalLiabilities = liabilities.reduce((sum: number, a: any) => sum + parseFloat(a.balance || "0"), 0);
+  const totalEquity = equity.reduce((sum: number, a: any) => sum + parseFloat(a.balance || "0"), 0);
 
   res.json({
     success: true,

@@ -1,14 +1,11 @@
-import { db } from "@workspace/db";
-import { 
-  contactsTable, productsTable, salesOrdersTable, customerInvoicesTable, 
-  purchaseOrdersTable, vendorBillsTable, paymentsTable, accountsTable, 
-  journalsTable, journalEntriesTable, budgetsTable, usersTable 
-} from "@workspace/db/schema";
+import fs from "fs";
+import path from "path";
 
 export const isDbConnected = !!process.env.DATABASE_URL;
 
-// In-Memory Seed Storage fallback if PostgreSQL is not connected yet
-export const memoryStore = {
+const DB_FILE = path.resolve(process.cwd(), "db-store.json");
+
+const initialData = {
   users: [
     { id: 1, loginId: "mara.chen", name: "Mara Chen", email: "mara@hearthandform.co", role: "User", companyName: "Hearth & Form Studio", billingAddress: "123 Main St, Suite 400, New York, NY 10001" },
     { id: 2, loginId: "admin", name: "Workspace Admin", email: "admin@company.com", role: "Admin", companyName: "Anchor Workspace", billingAddress: "456 Corporate Blvd, SF, CA" }
@@ -63,3 +60,25 @@ export const memoryStore = {
     { id: 2, budgetId: "BDG-2026-02", name: "Client Growth & Marketing", period: "Jan – Jun 2026", owner: "Eli Brooks", analytic: "ANC-002 Marketing", type: "Expense", target: "$45,000.00", committed: "$28,000.00", achieved: "$16,220.00", pct: 36, status: "Confirmed" }
   ]
 };
+
+function loadStore() {
+  try {
+    if (fs.existsSync(DB_FILE)) {
+      const content = fs.readFileSync(DB_FILE, "utf-8");
+      return JSON.parse(content);
+    }
+  } catch (err) {
+    console.error("Error loading store file:", err);
+  }
+  return initialData;
+}
+
+export const memoryStore = loadStore();
+
+export function saveStore() {
+  try {
+    fs.writeFileSync(DB_FILE, JSON.stringify(memoryStore, null, 2), "utf-8");
+  } catch (err) {
+    console.error("Error saving store file:", err);
+  }
+}

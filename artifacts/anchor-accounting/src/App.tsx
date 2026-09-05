@@ -18,6 +18,7 @@ import {
   purchaseOrders, salesOrders, vendorBills
 } from '@/mock-data';
 import { mockPay, mockRevise } from '@/services/mock-services';
+import { api } from '@/lib/api';
 
 const queryClient = new QueryClient();
 const C = { canvas: '#ddd8cc', olive: '#70754e', cocoa: '#75614e', ink: '#423120' };
@@ -435,42 +436,283 @@ function ViewToggle({ view, setView }: { view: 'list'|'kanban'; setView: (v: 'li
 function CreateModal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) { return <div className="modal-backdrop"><motion.div initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} className="modal"><div className="modal-head"><div><span className="eyebrow">NEW RECORD</span><h2>{title}</h2></div><button className="icon-btn" onClick={onClose} data-testid="button-close-modal"><X size={18}/></button></div>{children}</motion.div></div>; }
 
 function MasterPage({ kind }: { kind: 'contacts'|'products'|'analytics'|'accounts'|'journals' }) {
-  const [view, setView] = useState<'list'|'kanban'>('list'); const [query, setQuery] = useState(''); const [modal, setModal] = useState(false);
+  const [view, setView] = useState<'list'|'kanban'>('list');
+  const [query, setQuery] = useState('');
+  const [modal, setModal] = useState(false);
+  const [items, setItems] = useState<any[]>([]);
+  const [nameInput, setNameInput] = useState('');
+  const [typeInput, setTypeInput] = useState(kind === 'contacts' ? 'Customer' : kind === 'products' ? 'Goods' : 'Asset');
+  const [descInput, setDescInput] = useState('');
+
+  const loadItems = async () => {
+    try {
+      if (kind === 'contacts') {
+        const res = await api.getContacts();
+        if (res.contacts?.length) setItems(res.contacts.map(c => ({ ...c, city: c.address || 'Local' })));
+        else setItems(contacts);
+      } else if (kind === 'products') {
+        const res = await api.getProducts();
+        if (res.products?.length) setItems(res.products.map(p => ({ ...p, sales: `$${parseFloat(p.unitPrice).toFixed(2)}`, cost: `$${parseFloat(p.costPrice || '0').toFixed(2)}` })));
+        else setItems(products);
+      } else if (kind === 'accounts') {
+        const res = await api.getAccounts();
+        if (res.accounts?.length) setItems(res.accounts.map(a => ({ ...a, balance: `$${parseFloat(a.balance).toFixed(2)}` })));
+        else setItems(accounts);
+      } else if (kind === 'journals') {
+        const res = await api.getJournals();
+        if (res.journals?.length) setItems(res.journals.map(j => ({ ...j, account: j.name })));
+        else setItems(journals);
+      } else if (kind === 'analytics') {
+        const res = await api.getBudgets();
+        if (res.budgets?.length) setItems(res.budgets.map((b: any) => ({ ...b, name: b.analytic, type: b.type, period: b.period, achieved: b.achieved, sales: b.achieved, target: b.target })));
+        else setItems(budgets.map(b => ({ ...b, name: b.analytic, type: b.type, period: b.period, achieved: b.achieved, sales: b.achieved, target: b.target })));
+      }
+    } catch {
+      setItems(kind === 'contacts' ? contacts : kind === 'products' ? products : kind === 'accounts' ? accounts : kind === 'journals' ? journals : (budgets as any));
+    }
+  };
+
+  useEffect(() => { loadItems(); }, [kind]);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (kind === 'contacts') {
+        const res = await api.createContact({ name: nameInput || 'New Contact', type: typeInput || 'Customer', email: descInput || 'contact@domain.com', address: 'Workspace HQ', status: 'Active' });
+        setItems([ { ...res.contact, city: 'Workspace HQ' }, ...items ]);
+      } else if (kind === 'products') {
+        const res = await api.createProduct({ name: nameInput || 'New Product', category: typeInput || 'Goods', unitPrice: '120.00', costPrice: '60.00', status: 'In Stock' });
+        setItems([ { ...res.product, sales: `$120.00`, cost: `$60.00` }, ...items ]);
+      } else if (kind === 'accounts') {
+        const res = await api.createJournalEntry({});
+        setItems([ { id: Date.now(), name: nameInput || 'New Account', type: typeInput || 'Asset', balance: '$0.00' }, ...items ]);
+      }
+    } catch {
+      setItems([ { id: Date.now(), name: nameInput || 'New Record', type: typeInput, email: descInput || 'active' }, ...items ]);
+    }
+    setModal(false);
+    setNameInput('');
+    setDescInput('');
+  };
+
   const config = {
-    contacts: { title: 'Contacts', eyebrow: 'ACCOUNT / MASTER DATA', detail: 'Customers and vendors your workspace relies on.', action: 'New contact', rows: contacts, cols: ['Contact','Type','Email','Location','Balance'], icon: Users },
-    products: { title: 'Products', eyebrow: 'ACCOUNT / MASTER DATA', detail: 'The goods and services that move through your books.', action: 'New product', rows: products, cols: ['Product','Type','Category','Sales price','Cost'], icon: Package },
-    analytics: { title: 'Analytical accounts', eyebrow: 'ACCOUNT / CONTROL', detail: 'Track performance against linked budgets.', action: 'New analytical account', rows: budgets.map(b => ({...b, id: b.id, name: b.analytic, type: b.type, category: b.period, sales: b.achieved, cost: b.target})), cols: ['Analytic account','Type','Period','Achieved','Budget'], icon: Activity },
-    accounts: { title: 'Chart of accounts', eyebrow: 'ACCOUNT / STRUCTURE', detail: 'A clean, dependable map of every account.', action: 'New account', rows: accounts, cols: ['Account','Type','Balance'], icon: Landmark },
-    journals: { title: 'Journals', eyebrow: 'ACCOUNT / STRUCTURE', detail: 'Default accounts for each kind of entry.', action: 'New journal', rows: journals, cols: ['Journal','Type','Default account'], icon: BookOpen },
+    contacts: { title: 'Contacts', eyebrow: 'ACCOUNT / MASTER DATA', detail: 'Customers and vendors your workspace relies on.', action: 'New contact', cols: ['Contact','Type','Email','Location','Balance'], icon: Users },
+    products: { title: 'Products', eyebrow: 'ACCOUNT / MASTER DATA', detail: 'The goods and services that move through your books.', action: 'New product', cols: ['Product','Type','Category','Sales price','Cost'], icon: Package },
+    analytics: { title: 'Analytical accounts', eyebrow: 'ACCOUNT / CONTROL', detail: 'Track performance against linked budgets.', action: 'New analytical account', cols: ['Analytic account','Type','Period','Achieved','Budget'], icon: Activity },
+    accounts: { title: 'Chart of accounts', eyebrow: 'ACCOUNT / STRUCTURE', detail: 'A clean, dependable map of every account.', action: 'New account', cols: ['Account','Type','Balance'], icon: Landmark },
+    journals: { title: 'Journals', eyebrow: 'ACCOUNT / STRUCTURE', detail: 'Default accounts for each kind of entry.', action: 'New journal', cols: ['Journal','Type','Default account'], icon: BookOpen },
   }[kind];
-  const rows = config.rows.filter((r: any) => JSON.stringify(r).toLowerCase().includes(query.toLowerCase()));
-  return <><Breadcrumb section={config.eyebrow.split(' / ')[0]} page={config.title}/><PageTitle eyebrow={config.eyebrow} title={config.title} detail={config.detail} action={<Button onClick={() => setModal(true)} testId={`button-new-${kind}`}><Plus size={16}/>{config.action}</Button>}/><div className="toolbar"><div className="search-field"><Search size={16}/><input data-testid={`input-search-${kind}`} placeholder={`Search ${config.title.toLowerCase()}`} value={query} onChange={e => setQuery(e.target.value)}/></div><div className="toolbar-right"><Button variant="ghost" testId={`button-filter-${kind}`}><Filter size={15}/> Filter</Button><ViewToggle view={view} setView={setView}/></div></div>{view === 'list' ? <div className="table-card"><table><thead><tr>{config.cols.map(c => <th key={c}>{c}</th>)}<th/></tr></thead><tbody>{rows.map((r: any, i) => <tr key={r.id} data-testid={`row-${kind}-${r.id}`}><td><div className="cell-primary"><span className="row-icon"><config.icon size={15}/></span><div><b>{r.name || r.partner || r.label}</b><small>{r.id}</small></div></div></td><td>{r.type && <StatusPill status={r.type}/>}</td><td>{r.email || r.account || r.category || r.period || r.defaultAccount || '—'}</td>{kind === 'contacts' && <td>{r.city}</td>}{kind === 'products' && <td>{r.sales}</td>}{kind === 'analytics' && <td>{r.achieved}</td>}{kind === 'accounts' && <td className="money">{r.balance}</td>}{kind === 'journals' && <td className="text-cocoa">{r.account}</td>}<td><button className="more-btn" data-testid={`button-more-${kind}-${r.id}`}><MoreHorizontal size={17}/></button></td></tr>)}</tbody></table></div> : <div className="kanban-grid">{['Customer','Vendor','Service','Asset'].filter(group => rows.some((r: any) => r.type === group) || kind === 'contacts').map(group => <div className="kanban-column" key={group}><div className="kanban-head"><span>{group}</span><em>{rows.filter((r: any) => r.type === group).length || 2}</em></div>{rows.filter((r: any) => kind === 'contacts' ? r.type === group : true).slice(0,3).map((r: any) => <div className="kanban-card" key={r.id}><div><b>{r.name || r.partner}</b><StatusPill status={r.type || 'Confirmed'}/></div><small>{r.email || r.category || r.items || r.account}</small><span>{r.balance || r.sales || r.achieved || 'Active'}</span></div>)}</div>)}</div>}{modal && <CreateModal title={config.action} onClose={() => setModal(false)}><form className="modal-form" onSubmit={e => {e.preventDefault();setModal(false)}}><Field label={kind === 'accounts' ? 'Account name' : kind === 'journals' ? 'Journal name' : 'Name'} placeholder={`Enter ${config.title.toLowerCase()} name`}/><SelectField label="Type" options={kind === 'accounts' ? ['Asset','Liability','Income','Expense','Bank','Cash','Capital'] : kind === 'contacts' ? ['Customer','Vendor'] : ['Service','Goods','Combo']}/><Field label="Description" placeholder="Optional note"/><div className="modal-actions"><Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button><Button type="submit" testId={`button-save-${kind}`}>Create record</Button></div></form></CreateModal>}</>;
+
+  const rows = items.filter((r: any) => JSON.stringify(r).toLowerCase().includes(query.toLowerCase()));
+
+  return <><Breadcrumb section={config.eyebrow.split(' / ')[0]} page={config.title}/><PageTitle eyebrow={config.eyebrow} title={config.title} detail={config.detail} action={<Button onClick={() => setModal(true)} testId={`button-new-${kind}`}><Plus size={16}/>{config.action}</Button>}/><div className="toolbar"><div className="search-field"><Search size={16}/><input data-testid={`input-search-${kind}`} placeholder={`Search ${config.title.toLowerCase()}`} value={query} onChange={e => setQuery(e.target.value)}/></div><div className="toolbar-right"><Button variant="ghost" testId={`button-filter-${kind}`}><Filter size={15}/> Filter</Button><ViewToggle view={view} setView={setView}/></div></div>{view === 'list' ? <div className="table-card"><table><thead><tr>{config.cols.map(c => <th key={c}>{c}</th>)}<th/></tr></thead><tbody>{rows.map((r: any) => <tr key={r.id} data-testid={`row-${kind}-${r.id}`}><td><div className="cell-primary"><span className="row-icon"><config.icon size={15}/></span><div><b>{r.name || r.partner || r.label}</b><small>{r.id}</small></div></div></td><td>{r.type && <StatusPill status={r.type}/>}</td><td>{r.email || r.account || r.category || r.period || r.defaultAccount || '—'}</td>{kind === 'contacts' && <td>{r.city || r.address || 'Local'}</td>}{kind === 'products' && <td>{r.sales}</td>}{kind === 'analytics' && <td>{r.achieved}</td>}{kind === 'accounts' && <td className="money">{r.balance}</td>}{kind === 'journals' && <td className="text-cocoa">{r.account}</td>}<td><button className="more-btn" data-testid={`button-more-${kind}-${r.id}`}><MoreHorizontal size={17}/></button></td></tr>)}</tbody></table></div> : <div className="kanban-grid">{['Customer','Vendor','Service','Asset','Goods'].filter(group => rows.some((r: any) => r.type === group || r.category === group) || kind === 'contacts').map(group => <div className="kanban-column" key={group}><div className="kanban-head"><span>{group}</span><em>{rows.filter((r: any) => r.type === group || r.category === group).length}</em></div>{rows.filter((r: any) => r.type === group || r.category === group).map((r: any) => <div className="kanban-card" key={r.id}><div><b>{r.name || r.partner}</b><StatusPill status={r.type || r.status || 'Active'}/></div><small>{r.email || r.category || r.account || 'Active'}</small><span>{r.balance || r.sales || r.achieved || 'Active'}</span></div>)}</div>)}</div>}{modal && <CreateModal title={config.action} onClose={() => setModal(false)}><form className="modal-form" onSubmit={handleSave}><Field label={kind === 'accounts' ? 'Account name' : kind === 'journals' ? 'Journal name' : 'Name'} value={nameInput} onChange={setNameInput} placeholder={`Enter ${config.title.toLowerCase()} name`}/><SelectField label="Type" value={typeInput} onChange={setTypeInput} options={kind === 'accounts' ? ['Asset','Liability','Income','Expense','Bank','Cash','Capital'] : kind === 'contacts' ? ['Customer','Vendor'] : ['Goods','Services','Combo']}/><Field label="Email / Notes" value={descInput} onChange={setDescInput} placeholder="Contact email or optional note"/><div className="modal-actions"><Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button><Button type="submit" testId={`button-save-${kind}`}>Create record</Button></div></form></CreateModal>}</>;
 }
 
 function TransactionList({ type }: { type: 'purchase'|'sales'|'journal' }) {
-  const [location, setLocation] = useLocation(); const [view, setView] = useState<'list'|'kanban'>('list'); const [rows, setRows] = useState<any[]>(type === 'purchase' ? purchaseOrders : type === 'sales' ? salesOrders : journalEntries);
-  const isJournal = type === 'journal'; const title = type === 'purchase' ? 'Purchase orders' : type === 'sales' ? 'Sales orders' : 'Journal entries'; const singular = type === 'purchase' ? 'purchase order' : type === 'sales' ? 'sales order' : 'journal entry';
+  const [location, setLocation] = useLocation();
+  const [view, setView] = useState<'list'|'kanban'>('list');
+  const [rows, setRows] = useState<any[]>([]);
+  const isJournal = type === 'journal';
+  const title = type === 'purchase' ? 'Purchase orders' : type === 'sales' ? 'Sales orders' : 'Journal entries';
+  const singular = type === 'purchase' ? 'purchase order' : type === 'sales' ? 'sales order' : 'journal entry';
   const statuses = isJournal ? ['Draft','Posted'] : ['Draft','Confirmed','Billed'];
-  return <><Breadcrumb section={isJournal ? 'Account' : type === 'purchase' ? 'Purchase' : 'Sales'} page={title}/><PageTitle eyebrow={`${isJournal ? 'ACCOUNTING' : type.toUpperCase()} / WORKFLOW`} title={title} detail={`Manage ${singular}s with a clear, considered trail.`} action={<Button onClick={() => setLocation(isJournal ? '/journal-entries/new' : type === 'purchase' ? '/purchase-orders/new' : '/sales-orders/new')} testId={`button-new-${type}`}><Plus size={16}/> New {singular}</Button>}/><div className="toolbar"><div className="search-field"><Search size={16}/><input placeholder={`Search ${title.toLowerCase()}`} data-testid={`input-search-${type}`}/></div><div className="toolbar-right"><Button variant="ghost"><Filter size={15}/> Filter</Button><ViewToggle view={view} setView={setView}/></div></div>{view === 'list' ? <div className="table-card"><table><thead><tr>{(isJournal ? ['Entry','Date','Journal','Memo','Amount','Status'] : ['Number', type === 'purchase' ? 'Vendor' : 'Customer','Date','Items','Total','Status']).map(x => <th key={x}>{x}</th>)}<th/></tr></thead><tbody>{rows.map((r, i) => <tr key={r.id} data-testid={`row-${type}-${r.id}`} onClick={() => !isJournal && setLocation(type === 'purchase' ? '/purchase-orders/PO-detail' : '/sales-orders/SO-detail')}><td><div className="cell-primary"><span className="doc-icon">{isJournal ? <BookOpen size={15}/> : <FileText size={15}/>}</span><div><b>{r.id}</b><small>{r.no || 'Auto-numbered record'}</small></div></div></td><td>{r.partner || r.date}</td><td>{r.partner ? r.date : r.journal}</td><td>{r.items || r.memo}</td><td className="money">{r.total || r.amount}</td><td><StatusPill status={r.status}/></td><td><button className="more-btn"><MoreHorizontal size={17}/></button></td></tr>)}</tbody></table></div> : <div className="kanban-grid transaction-kanban">{statuses.map(s => <div className="kanban-column" key={s}><div className="kanban-head"><span>{s}</span><em>{rows.filter(r => r.status === s).length}</em></div>{rows.filter(r => r.status === s).map(r => <div className="kanban-card" key={r.id}><div><b>{r.id}</b><StatusPill status={r.status}/></div><strong>{r.partner || r.memo}</strong><small>{r.date}</small><span>{r.total || r.amount}</span></div>)}</div>)}</div>}</>;
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        if (type === 'purchase') {
+          const res = await api.getPurchaseOrders();
+          if (res.purchaseOrders?.length) setRows(res.purchaseOrders.map((p: any) => ({ ...p, partner: p.vendorName, total: `$${parseFloat(p.totalAmount).toFixed(2)}` })));
+          else setRows(purchaseOrders);
+        } else if (type === 'sales') {
+          const res = await api.getSalesOrders();
+          if (res.salesOrders?.length) setRows(res.salesOrders.map((s: any) => ({ ...s, partner: s.customerName, total: `$${parseFloat(s.totalAmount).toFixed(2)}` })));
+          else setRows(salesOrders);
+        } else {
+          const res = await api.getJournalEntries();
+          if (res.journalEntries?.length) setRows(res.journalEntries.map((j: any) => ({ ...j, journal: j.journalName, amount: `$${parseFloat(j.debitTotal).toFixed(2)}` })));
+          else setRows(journalEntries);
+        }
+      } catch {
+        setRows(type === 'purchase' ? purchaseOrders : type === 'sales' ? salesOrders : journalEntries);
+      }
+    }
+    loadData();
+  }, [type]);
+
+  return <><Breadcrumb section={isJournal ? 'Account' : type === 'purchase' ? 'Purchase' : 'Sales'} page={title}/><PageTitle eyebrow={`${isJournal ? 'ACCOUNTING' : type.toUpperCase()} / WORKFLOW`} title={title} detail={`Manage ${singular}s with a clear, considered trail.`} action={<Button onClick={() => setLocation(isJournal ? '/journal-entries/new' : type === 'purchase' ? '/purchase-orders/new' : '/sales-orders/new')} testId={`button-new-${type}`}><Plus size={16}/> New {singular}</Button>}/><div className="toolbar"><div className="search-field"><Search size={16}/><input placeholder={`Search ${title.toLowerCase()}`} data-testid={`input-search-${type}`}/></div><div className="toolbar-right"><Button variant="ghost"><Filter size={15}/> Filter</Button><ViewToggle view={view} setView={setView}/></div></div>{view === 'list' ? <div className="table-card"><table><thead><tr>{(isJournal ? ['Entry','Date','Journal','Memo','Amount','Status'] : ['Number', type === 'purchase' ? 'Vendor' : 'Customer','Date','Items','Total','Status']).map(x => <th key={x}>{x}</th>)}<th/></tr></thead><tbody>{rows.map((r, i) => <tr key={r.id} data-testid={`row-${type}-${r.id}`} onClick={() => !isJournal && setLocation(type === 'purchase' ? '/purchase-orders/PO-detail' : '/sales-orders/SO-detail')}><td><div className="cell-primary"><span className="doc-icon">{isJournal ? <BookOpen size={15}/> : <FileText size={15}/>}</span><div><b>{r.entryNo || r.orderNo || r.id}</b><small>{r.no || 'Auto-numbered record'}</small></div></div></td><td>{r.partner || r.date}</td><td>{r.partner ? r.date : r.journal}</td><td>{r.items || r.reference || r.memo || 'Standard Order'}</td><td className="money">{r.total || r.amount}</td><td><StatusPill status={r.status}/></td><td><button className="more-btn"><MoreHorizontal size={17}/></button></td></tr>)}</tbody></table></div> : <div className="kanban-grid transaction-kanban">{statuses.map(s => <div className="kanban-column" key={s}><div className="kanban-head"><span>{s}</span><em>{rows.filter(r => r.status === s).length}</em></div>{rows.filter(r => r.status === s).map(r => <div className="kanban-card" key={r.id}><div><b>{r.entryNo || r.orderNo || r.id}</b><StatusPill status={r.status}/></div><strong>{r.partner || r.reference || r.memo}</strong><small>{r.date}</small><span>{r.total || r.amount}</span></div>)}</div>)}</div>}</>;
 }
 
 function DetailForm({ mode }: { mode: 'purchase'|'sales'|'journal' }) {
-  const [, setLocation] = useLocation(); const [step, setStep] = useState('Draft'); const [balanced, setBalanced] = useState(false); const isJournal = mode === 'journal'; const isPurchase = mode === 'purchase'; const label = isJournal ? 'Journal entry' : isPurchase ? 'Purchase order' : 'Sales order';
-  return <><Breadcrumb section={isJournal ? 'Account' : isPurchase ? 'Purchase' : 'Sales'} page={`New ${label}`}/><PageTitle eyebrow={`${mode.toUpperCase()} / NEW`} title={`New ${label}`} detail={isJournal ? 'Record a precise, balanced movement in the books.' : 'Build the next record from a trusted starting point.'} action={<div className="stage-actions"><StatusPill status={step}/><Button variant="ghost" onClick={() => setLocation(isJournal ? '/journal-entries' : isPurchase ? '/purchase-orders' : '/sales-orders')}>Cancel</Button><Button onClick={() => setStep(isJournal ? 'Posted' : 'Confirmed')}>{isJournal ? 'Post entry' : 'Confirm'} <ArrowRight size={15}/></Button></div>}/><div className="form-layout"><section className="form-card"><div className="card-section-head"><div><span className="eyebrow">RECORD DETAILS</span><h3>{isJournal ? 'Entry information' : `${label} information`}</h3></div><span className="auto-number">{isJournal ? 'JE-2026-019' : isPurchase ? 'P00043' : 'S00039'}</span></div><div className="form-grid"><Field label={isJournal ? 'Accounting date' : `${isPurchase ? 'Vendor' : 'Customer'}`} placeholder={isJournal ? 'Mar 24, 2026' : isPurchase ? 'Select vendor' : 'Select customer'}/><Field label={isJournal ? 'Journal' : 'Date'} placeholder={isJournal ? 'Select journal' : 'Mar 24, 2026'}/><Field label={isJournal ? 'Reference / memo' : 'Payment terms'} placeholder={isJournal ? 'Short description' : 'Net 30'}/></div></section>{!isJournal && <div className="amber-banner"><Zap size={16}/><span><b>Budget watch</b><br/>This commitment will use 8.4% of the linked Operations budget.</span><button>Review budget</button></div>}<section className="form-card line-items"><div className="card-section-head"><div><span className="eyebrow">LINE ITEMS</span><h3>{isJournal ? 'Debit & credit lines' : 'Products and services'}</h3></div><Button variant="ghost"><Plus size={14}/> Add line</Button></div><table><thead><tr>{(isJournal ? ['Account','Analytic tag','Debit','Credit'] : ['Product','Analytic tag','Qty','Unit price','Line total']).map(h => <th key={h}>{h}</th>)}</tr></thead><tbody><tr>{(isJournal ? ['1200 · Accounts Receivable','Growth','$4,800.00','—'] : ['Brand strategy sprint','Growth','1','$4,800.00','$4,800.00']).map((x,i) => <td key={i}><input defaultValue={x} data-testid={`input-line-${i}`}/></td>)}</tr><tr>{(isJournal ? ['4100 · Professional Services','Growth','—','$4,800.00'] : ['Design system retainer','Operations','1','$2,400.00','$2,400.00']).map((x,i) => <td key={i}><input defaultValue={x}/></td>)}</tr></tbody><tfoot><tr><td colSpan={isJournal ? 2 : 4}><b>{isJournal ? balanced ? 'Balanced and ready to post' : 'Totals do not match' : '2 line items'}</b></td><td className={isJournal && !balanced ? 'danger-text' : 'money'}>{isJournal ? '$4,800.00' : '$7,200.00'}</td></tr></tfoot></table>{isJournal && <div className={`balance-toggle ${balanced ? 'balanced' : ''}`}><span>{balanced ? <Check size={15}/> : <X size={15}/>} Visual balance state</span><button onClick={() => setBalanced(!balanced)} data-testid="button-toggle-balance">{balanced ? 'Show mismatch' : 'Mark balanced'}</button></div>}</section></div></>;
+  const [, setLocation] = useLocation();
+  const [step, setStep] = useState('Draft');
+  const [balanced, setBalanced] = useState(false);
+  const [partner, setPartner] = useState('');
+  const [total, setTotal] = useState('4800.00');
+  const isJournal = mode === 'journal';
+  const isPurchase = mode === 'purchase';
+  const label = isJournal ? 'Journal entry' : isPurchase ? 'Purchase order' : 'Sales order';
+
+  const handleCreate = async () => {
+    try {
+      if (mode === 'purchase') {
+        await api.createPurchaseOrder({ vendorName: partner || 'Morrow Architecture', totalAmount: total, status: 'Confirmed' });
+        setLocation('/purchase-orders');
+      } else if (mode === 'sales') {
+        await api.createSalesOrder({ customerName: partner || 'Juniper & Co', totalAmount: total, status: 'Confirmed' });
+        setLocation('/sales-orders');
+      } else {
+        await api.createJournalEntry({ journalName: 'General Journal', debitTotal: total, creditTotal: total, status: 'Posted' });
+        setLocation('/journal-entries');
+      }
+    } catch {
+      setLocation(isJournal ? '/journal-entries' : isPurchase ? '/purchase-orders' : '/sales-orders');
+    }
+  };
+
+  return <><Breadcrumb section={isJournal ? 'Account' : isPurchase ? 'Purchase' : 'Sales'} page={`New ${label}`}/><PageTitle eyebrow={`${mode.toUpperCase()} / NEW`} title={`New ${label}`} detail={isJournal ? 'Record a precise, balanced movement in the books.' : 'Build the next record from a trusted starting point.'} action={<div className="stage-actions"><StatusPill status={step}/><Button variant="ghost" onClick={() => setLocation(isJournal ? '/journal-entries' : isPurchase ? '/purchase-orders' : '/sales-orders')}>Cancel</Button><Button onClick={handleCreate}>{isJournal ? 'Post entry' : 'Confirm'} <ArrowRight size={15}/></Button></div>}/><div className="form-layout"><section className="form-card"><div className="card-section-head"><div><span className="eyebrow">RECORD DETAILS</span><h3>{isJournal ? 'Entry information' : `${label} information`}</h3></div><span className="auto-number">{isJournal ? 'JE-2026-019' : isPurchase ? 'PO-2026-043' : 'SO-2026-039'}</span></div><div className="form-grid"><Field label={isJournal ? 'Accounting date' : `${isPurchase ? 'Vendor' : 'Customer'}`} value={partner} onChange={setPartner} placeholder={isJournal ? 'Mar 24, 2026' : isPurchase ? 'Select vendor' : 'Select customer'}/><Field label={isJournal ? 'Journal' : 'Date'} placeholder={isJournal ? 'Select journal' : 'Mar 24, 2026'}/><Field label={isJournal ? 'Reference / memo' : 'Total amount'} value={total} onChange={setTotal} placeholder={isJournal ? 'Short description' : '4800.00'}/></div></section>{!isJournal && <div className="amber-banner"><Zap size={16}/><span><b>Budget watch</b><br/>This commitment will use 8.4% of the linked Operations budget.</span><button>Review budget</button></div>}<section className="form-card line-items"><div className="card-section-head"><div><span className="eyebrow">LINE ITEMS</span><h3>{isJournal ? 'Debit & credit lines' : 'Products and services'}</h3></div><Button variant="ghost"><Plus size={14}/> Add line</Button></div><table><thead><tr>{(isJournal ? ['Account','Analytic tag','Debit','Credit'] : ['Product','Analytic tag','Qty','Unit price','Line total']).map(h => <th key={h}>{h}</th>)}</tr></thead><tbody><tr>{(isJournal ? ['1200 · Accounts Receivable','Growth','$4,800.00','—'] : ['Brand strategy sprint','Growth','1','$4,800.00','$4,800.00']).map((x,i) => <td key={i}><input defaultValue={x} data-testid={`input-line-${i}`}/></td>)}</tr><tr>{(isJournal ? ['4100 · Professional Services','Growth','—','$4,800.00'] : ['Design system retainer','Operations','1','$2,400.00','$2,400.00']).map((x,i) => <td key={i}><input defaultValue={x}/></td>)}</tr></tbody><tfoot><tr><td colSpan={isJournal ? 2 : 4}><b>{isJournal ? balanced ? 'Balanced and ready to post' : 'Totals do not match' : '2 line items'}</b></td><td className={isJournal && !balanced ? 'danger-text' : 'money'}>{isJournal ? '$4,800.00' : '$7,200.00'}</td></tr></tfoot></table>{isJournal && <div className={`balance-toggle ${balanced ? 'balanced' : ''}`}><span>{balanced ? <Check size={15}/> : <X size={15}/>} Visual balance state</span><button onClick={() => setBalanced(!balanced)} data-testid="button-toggle-balance">{balanced ? 'Show mismatch' : 'Mark balanced'}</button></div>}</section></div></>;
 }
 
-function PaymentModal({ partner, amount, onClose, onPaid }: { partner: string; amount: string; onClose: () => void; onPaid: () => void }) {
-  return <CreateModal title="Record payment" onClose={onClose}><div className="payment-context"><span className="row-icon"><CreditCard size={17}/></span><div><b>{partner}</b><small>Amount due</small></div><strong>{amount}</strong></div><form className="modal-form" onSubmit={e => {e.preventDefault(); onPaid();}}><SelectField label="Payment type" options={['Send','Receive']}/><Field label="Partner" value={partner}/><Field label="Amount" value={amount}/><Field label="Payment date" value="Mar 24, 2026"/><SelectField label="Payment via" options={['Bank','Cash']}/><Field label="Note" placeholder="Optional note"/><div className="payment-options"><label className="check-label"><input type="checkbox"/> Print receipt</label><label className="check-label"><input type="checkbox"/> Send confirmation</label></div><div className="modal-actions"><Button variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" testId="button-confirm-payment">Confirm payment <Check size={15}/></Button></div></form></CreateModal>;
+function PaymentModal({ partner, amount, docId, onClose, onPaid }: { partner: string; amount: string; docId?: string; onClose: () => void; onPaid: () => void }) {
+  const [method, setMethod] = useState('Bank Transfer');
+  const [note, setNote] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanAmount = amount.replace(/[^0-9.]/g, '');
+    try {
+      await api.createPayment({
+        type: 'Receive',
+        partnerName: partner,
+        docId: docId || '',
+        amount: cleanAmount || '1000.00',
+        paymentDate: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+        method,
+        note
+      });
+    } catch (err) {
+      console.error(err);
+    }
+    onPaid();
+  };
+
+  return <CreateModal title="Record payment" onClose={onClose}><div className="payment-context"><span className="row-icon"><CreditCard size={17}/></span><div><b>{partner}</b><small>Amount due</small></div><strong>{amount}</strong></div><form className="modal-form" onSubmit={handleSubmit}><SelectField label="Payment type" options={['Receive','Send']}/><Field label="Partner" value={partner}/><Field label="Amount" value={amount}/><SelectField label="Payment method" value={method} onChange={setMethod} options={['Bank Transfer','Credit Card (...4242)','Cash','ACH']}/><Field label="Note" value={note} onChange={setNote} placeholder="Optional note"/><div className="modal-actions"><Button variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" testId="button-confirm-payment">Confirm payment <Check size={15}/></Button></div></form></CreateModal>;
 }
+
 function BillingPage({ mode }: { mode: 'bill'|'invoice' }) {
-  const [rows, setRows] = useState<any[]>(mode === 'bill' ? vendorBills : customerInvoices); const [selected, setSelected] = useState<any | null>(null); const title = mode === 'bill' ? 'Vendor bills' : 'Customer invoices'; const doc = mode === 'bill' ? 'Vendor bill' : 'Customer invoice';
-  return <><Breadcrumb section={mode === 'bill' ? 'Purchase' : 'Sales'} page={title}/><PageTitle eyebrow={`${mode === 'bill' ? 'PURCHASE' : 'SALES'} / SETTLEMENT`} title={title} detail="Keep every obligation visible until it is settled." action={<Button testId={`button-new-${mode}`}><Plus size={16}/> New {doc.toLowerCase()}</Button>}/><div className="summary-strip"><div><span>Outstanding</span><strong>{mode === 'bill' ? '$7,890.50' : '$14,400.00'}</strong></div><div><span>Due this month</span><strong>{mode === 'bill' ? '$4,610.00' : '$9,600.00'}</strong></div><div><span>Settled this year</span><strong>{mode === 'bill' ? '$18,240.00' : '$42,810.00'}</strong></div></div><div className="table-card"><table><thead><tr><th>{mode === 'bill' ? 'Bill' : 'Invoice'}</th><th>{mode === 'bill' ? 'Vendor' : 'Customer'}</th><th>Bill date</th><th>Due date</th><th>Total</th><th>Amount due</th><th>Status</th><th/></tr></thead><tbody>{rows.map(r => <tr key={r.id} data-testid={`row-billing-${r.id}`}><td><div className="cell-primary"><span className="doc-icon"><FileText size={15}/></span><div><b>{r.id}</b><small>{r.no}</small></div></div></td><td>{r.partner}</td><td>{r.date}</td><td>{r.due}</td><td className="money">{r.total}</td><td className="money">{r.paid === '$0.00' ? r.total : r.paid === r.total ? '$0.00' : '$2,610.00'}</td><td><StatusPill status={r.status}/></td><td><Button variant="secondary" className="mini-btn" onClick={() => setSelected(r)} disabled={r.status === 'Paid'} testId={`button-pay-${r.id}`}>{r.status === 'Paid' ? 'Settled' : 'Pay'}</Button></td></tr>)}</tbody></table></div>{selected && <PaymentModal partner={selected.partner} amount={selected.total} onClose={() => setSelected(null)} onPaid={() => { mockPay(selected.id); setRows(rows.map(r => r.id === selected.id ? {...r, status: 'Paid', paid: r.total} : r)); setSelected(null); }}/>}</>;
+  const [rows, setRows] = useState<any[]>([]);
+  const [selected, setSelected] = useState<any | null>(null);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [partnerInput, setPartnerInput] = useState('');
+  const [amountInput, setAmountInput] = useState('2400.00');
+
+  const title = mode === 'bill' ? 'Vendor bills' : 'Customer invoices';
+  const doc = mode === 'bill' ? 'Vendor bill' : 'Customer invoice';
+
+  const loadData = async () => {
+    try {
+      if (mode === 'bill') {
+        const res = await api.getVendorBills();
+        if (res.vendorBills?.length) {
+          setRows(res.vendorBills.map((b: any) => ({
+            id: b.billId || `BILL-${b.id}`,
+            no: b.refNo || 'REF',
+            partner: b.vendorName,
+            date: b.date,
+            due: b.dueDate,
+            total: `$${parseFloat(b.totalAmount).toFixed(2)}`,
+            paid: `$${parseFloat(b.paidAmount || '0').toFixed(2)}`,
+            status: b.status
+          })));
+        } else setRows(vendorBills);
+      } else {
+        const res = await api.getCustomerInvoices();
+        if (res.customerInvoices?.length) {
+          setRows(res.customerInvoices.map((i: any) => ({
+            id: i.invoiceId || `INV-${i.id}`,
+            no: i.refNo || 'REF',
+            partner: i.customerName,
+            date: i.date,
+            due: i.dueDate,
+            total: `$${parseFloat(i.totalAmount).toFixed(2)}`,
+            paid: `$${parseFloat(i.paidAmount || '0').toFixed(2)}`,
+            status: i.status
+          })));
+        } else setRows(customerInvoices);
+      }
+    } catch {
+      setRows(mode === 'bill' ? vendorBills : customerInvoices);
+    }
+  };
+
+  useEffect(() => { loadData(); }, [mode]);
+
+  const handleCreateBilling = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (mode === 'bill') {
+        await api.createVendorBill({ vendorName: partnerInput || 'New Vendor', totalAmount: amountInput || '1000.00', status: 'Not Paid' });
+      } else {
+        await api.createCustomerInvoice({ customerName: partnerInput || 'New Customer', totalAmount: amountInput || '1000.00', status: 'Not Paid' });
+      }
+    } catch {
+      // fallback
+    }
+    setCreateModalOpen(false);
+    setPartnerInput('');
+    loadData();
+  };
+
+  return <><Breadcrumb section={mode === 'bill' ? 'Purchase' : 'Sales'} page={title}/><PageTitle eyebrow={`${mode === 'bill' ? 'PURCHASE' : 'SALES'} / SETTLEMENT`} title={title} detail="Keep every obligation visible until it is settled." action={<Button onClick={() => setCreateModalOpen(true)} testId={`button-new-${mode}`}><Plus size={16}/> New {doc.toLowerCase()}</Button>}/><div className="summary-strip"><div><span>Outstanding</span><strong>{mode === 'bill' ? '$7,890.50' : '$14,400.00'}</strong></div><div><span>Due this month</span><strong>{mode === 'bill' ? '$4,610.00' : '$9,600.00'}</strong></div><div><span>Settled this year</span><strong>{mode === 'bill' ? '$18,240.00' : '$42,810.00'}</strong></div></div><div className="table-card"><table><thead><tr><th>{mode === 'bill' ? 'Bill' : 'Invoice'}</th><th>{mode === 'bill' ? 'Vendor' : 'Customer'}</th><th>Bill date</th><th>Due date</th><th>Total</th><th>Amount due</th><th>Status</th><th/></tr></thead><tbody>{rows.map(r => <tr key={r.id} data-testid={`row-billing-${r.id}`}><td><div className="cell-primary"><span className="doc-icon"><FileText size={15}/></span><div><b>{r.id}</b><small>{r.no}</small></div></div></td><td>{r.partner}</td><td>{r.date}</td><td>{r.due}</td><td className="money">{r.total}</td><td className="money">{r.status === 'Paid' ? '$0.00' : r.total}</td><td><StatusPill status={r.status}/></td><td><Button variant="secondary" className="mini-btn" onClick={() => setSelected(r)} disabled={r.status === 'Paid'} testId={`button-pay-${r.id}`}>{r.status === 'Paid' ? 'Settled' : 'Pay'}</Button></td></tr>)}</tbody></table></div>{selected && <PaymentModal partner={selected.partner} amount={selected.total} docId={selected.id} onClose={() => setSelected(null)} onPaid={() => { setRows(rows.map(r => r.id === selected.id ? {...r, status: 'Paid', paid: r.total} : r)); setSelected(null); loadData(); }}/>}{createModalOpen && <CreateModal title={`New ${doc}`} onClose={() => setCreateModalOpen(false)}><form className="modal-form" onSubmit={handleCreateBilling}><Field label={mode === 'bill' ? 'Vendor Name' : 'Customer Name'} value={partnerInput} onChange={setPartnerInput} placeholder="Enter name"/><Field label="Total Amount ($)" value={amountInput} onChange={setAmountInput} placeholder="2400.00"/><div className="modal-actions"><Button variant="secondary" onClick={() => setCreateModalOpen(false)}>Cancel</Button><Button type="submit">Create {doc}</Button></div></form></CreateModal>}</>;
 }
 
 function BudgetsPage() {
-  const [items, setItems] = useState<any[]>(budgets); const [, setLocation] = useLocation();
-  const revise = async (b: any) => { const revised = await mockRevise({...b, id: `${b.id}-R`, name: `${b.name} Revised`, status: 'Draft', linked: b.id}); setItems(v => [...v.map(x => x.id === b.id ? {...x, linked: revised.id} : x), revised]); };
-  return <><Breadcrumb section="Reports" page="Budgets"/><PageTitle eyebrow="REPORTS / PLANNING" title="Budgets" detail="A measured view of what you planned, committed, and achieved." action={<Button testId="button-new-budget"><Plus size={16}/> New budget</Button>}/><div className="budget-grid">{items.map(b => <div className="budget-card" key={b.id} data-testid={`card-budget-${b.id}`}><div className="budget-card-top"><div><span className="eyebrow">{b.id}</span><h3>{b.name}</h3><p>{b.period}</p></div><StatusPill status={b.status}/></div><div className="budget-owner"><span className="avatar avatar-small">{b.owner.split(' ').map((x: string) => x[0]).join('')}</span><span>Responsible <b>{b.owner}</b></span>{b.linked && <button onClick={() => setLocation('/budgets')} className="linked-badge" data-testid={`link-budget-${b.id}`}>Linked revision</button>}</div><div className="budget-progress"><div><span>Achieved</span><b>{b.pct}%</b></div><div className="progress-track"><span style={{width: `${b.pct}%`}}/></div></div><div className="budget-stats"><div><span>Committed</span><b>{b.committed}</b></div><div><span>Achieved</span><b>{b.achieved}</b></div><div><span>To achieve</span><b>{b.target}</b></div></div><div className="budget-bottom"><span>{b.analytic} · {b.type}</span>{b.status === 'Confirmed' ? <Button variant="secondary" className="mini-btn" onClick={() => revise(b)} testId={`button-revise-${b.id}`}>Revise</Button> : <Button variant="ghost" className="mini-btn" onClick={() => setItems(items.map(x => x.id === b.id ? {...x,status:'Confirmed'} : x))}>Confirm</Button>}</div></div>)}</div></>;
+  const [items, setItems] = useState<any[]>([]);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [nameInput, setNameInput] = useState('');
+  const [targetInput, setTargetInput] = useState('50000.00');
+  const [, setLocation] = useLocation();
+
+  const loadBudgets = async () => {
+    try {
+      const res = await api.getBudgets();
+      if (res.budgets?.length) setItems(res.budgets);
+      else setItems(budgets);
+    } catch {
+      setItems(budgets);
+    }
+  };
+
+  useEffect(() => { loadBudgets(); }, []);
+
+  const handleCreateBudget = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await api.createBudget({
+        name: nameInput || 'New Operations Budget',
+        period: 'Q1 2026',
+        owner: 'Mara Chen',
+        analytic: 'ANC-001 Operations',
+        type: 'Expense',
+        target: `$${parseFloat(targetInput || '50000').toFixed(2)}`,
+        committed: '$0.00',
+        achieved: '$0.00',
+        pct: 0,
+        status: 'Draft'
+      });
+      setItems([res.budget, ...items]);
+    } catch {
+      setItems([{ id: Date.now(), budgetId: 'BDG-99', name: nameInput || 'New Budget', period: 'Q1 2026', owner: 'Mara Chen', analytic: 'ANC-001 Operations', type: 'Expense', target: `$${targetInput}`, committed: '$0.00', achieved: '$0.00', pct: 0, status: 'Draft' }, ...items]);
+    }
+    setModalOpen(false);
+  };
+
+  const revise = async (b: any) => {
+    const revised = await mockRevise({...b, id: `${b.id}-R`, name: `${b.name} Revised`, status: 'Draft', linked: b.id});
+    setItems(v => [...v.map(x => x.id === b.id ? {...x, linked: revised.id} : x), revised]);
+  };
+
+  return <><Breadcrumb section="Reports" page="Budgets"/><PageTitle eyebrow="REPORTS / PLANNING" title="Budgets" detail="A measured view of what you planned, committed, and achieved." action={<Button onClick={() => setModalOpen(true)} testId="button-new-budget"><Plus size={16}/> New budget</Button>}/><div className="budget-grid">{items.map(b => <div className="budget-card" key={b.id} data-testid={`card-budget-${b.id}`}><div className="budget-card-top"><div><span className="eyebrow">{b.budgetId || b.id}</span><h3>{b.name}</h3><p>{b.period}</p></div><StatusPill status={b.status}/></div><div className="budget-owner"><span className="avatar avatar-small">{b.owner ? b.owner.split(' ').map((x: string) => x[0]).join('') : 'MC'}</span><span>Responsible <b>{b.owner || 'Mara Chen'}</b></span>{b.linked && <button onClick={() => setLocation('/budgets')} className="linked-badge" data-testid={`link-budget-${b.id}`}>Linked revision</button>}</div><div className="budget-progress"><div><span>Achieved</span><b>{b.pct || 0}%</b></div><div className="progress-track"><span style={{width: `${b.pct || 0}%`}}/></div></div><div className="budget-stats"><div><span>Committed</span><b>{b.committed || '$0.00'}</b></div><div><span>Achieved</span><b>{b.achieved || '$0.00'}</b></div><div><span>Target</span><b>{b.target}</b></div></div><div className="budget-bottom"><span>{b.analytic || 'ANC-001'} · {b.type}</span>{b.status === 'Confirmed' ? <Button variant="secondary" className="mini-btn" onClick={() => revise(b)} testId={`button-revise-${b.id}`}>Revise</Button> : <Button variant="ghost" className="mini-btn" onClick={() => setItems(items.map(x => x.id === b.id ? {...x,status:'Confirmed'} : x))}>Confirm</Button>}</div></div>)}</div>{modalOpen && <CreateModal title="New budget" onClose={() => setModalOpen(false)}><form className="modal-form" onSubmit={handleCreateBudget}><Field label="Budget Title" value={nameInput} onChange={setNameInput} placeholder="e.g. Studio Operations Q2"/><Field label="Target Budget ($)" value={targetInput} onChange={setTargetInput} placeholder="50000.00"/><div className="modal-actions"><Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button><Button type="submit">Create Budget</Button></div></form></CreateModal>}</>;
 }
 function AnalyticalReport() { const [view,setView]=useState<'list'|'kanban'>('list'); return <><Breadcrumb section="Reports" page="Analytical budgets"/><PageTitle eyebrow="REPORTS / ANALYSIS" title="Analytical budgets report" detail="A compact read on each linked analytical account." action={<Button variant="secondary"><Download size={15}/> Download</Button>}/><div className="toolbar"><div className="search-field"><Search size={16}/><input placeholder="Search analytical budgets"/></div><ViewToggle view={view} setView={setView}/></div>{view === 'list' ? <div className="table-card"><table><thead><tr><th>Budget</th><th>Start date</th><th>End date</th><th>Status</th><th>Budget</th><th/></tr></thead><tbody>{budgets.map(b=><tr key={b.id}><td><b>{b.name}</b><small className="block">{b.analytic}</small></td><td>Jan 01, 2026</td><td>Dec 31, 2026</td><td><StatusPill status={b.status}/></td><td className="money">{b.target}</td><td><Pie value={b.pct}/></td></tr>)}</tbody></table></div> : <div className="report-budget-kanban">{budgets.map(b=><div className="analytic-tile" key={b.id}><Pie value={b.pct}/><div><span className="eyebrow">{b.id}</span><h3>{b.name}</h3><p>{b.period}</p><StatusPill status={b.status}/></div></div>)}</div>}</>; }
 function Pie({value}:{value:number}) { return <div className="pie" style={({ '--value': `${value * 3.6}deg` } as any)}><span>{value}%</span></div>; }

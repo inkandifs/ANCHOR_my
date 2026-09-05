@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { memoryStore } from "../lib/store";
+import { memoryStore, saveStore } from "../lib/store";
 
 const router: IRouter = Router();
 
@@ -11,7 +11,7 @@ router.post("/purchase-orders", (req, res) => {
   const { vendorName, orderDate, expectedDate, totalAmount, status } = req.body;
   const count = memoryStore.purchaseOrders.length + 19;
   const newOrder = {
-    id: memoryStore.purchaseOrders.length ? Math.max(...memoryStore.purchaseOrders.map(o => o.id)) + 1 : 1,
+    id: memoryStore.purchaseOrders.length ? Math.max(...memoryStore.purchaseOrders.map((o: any) => o.id)) + 1 : 1,
     orderNo: `PO-${String(count).padStart(4, "0")}`,
     vendorName: vendorName || "Vendor",
     orderDate: orderDate || new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
@@ -20,6 +20,7 @@ router.post("/purchase-orders", (req, res) => {
     status: status || "Draft"
   };
   memoryStore.purchaseOrders.unshift(newOrder);
+  saveStore();
   res.status(201).json({ success: true, purchaseOrder: newOrder });
 });
 
@@ -31,7 +32,7 @@ router.post("/vendor-bills", (req, res) => {
   const { vendorName, date, dueDate, refNo, totalAmount, status } = req.body;
   const count = memoryStore.vendorBills.length + 5;
   const newBill = {
-    id: memoryStore.vendorBills.length ? Math.max(...memoryStore.vendorBills.map(b => b.id)) + 1 : 1,
+    id: memoryStore.vendorBills.length ? Math.max(...memoryStore.vendorBills.map((b: any) => b.id)) + 1 : 1,
     billId: `BILL/2026/${String(count).padStart(4, "0")}`,
     refNo: refNo || `REF-${count}`,
     vendorName: vendorName || "Vendor",
@@ -42,6 +43,7 @@ router.post("/vendor-bills", (req, res) => {
     status: status || "Not Paid"
   };
   memoryStore.vendorBills.unshift(newBill);
+  saveStore();
   res.status(201).json({ success: true, vendorBill: newBill });
 });
 

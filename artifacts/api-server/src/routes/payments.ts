@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { memoryStore } from "../lib/store";
+import { memoryStore, saveStore } from "../lib/store";
 
 const router: IRouter = Router();
 
@@ -13,7 +13,7 @@ router.post("/payments", (req, res) => {
   const count = memoryStore.payments.length + 33;
   
   const newPayment = {
-    id: memoryStore.payments.length ? Math.max(...memoryStore.payments.map(p => p.id)) + 1 : 1,
+    id: memoryStore.payments.length ? Math.max(...memoryStore.payments.map((p: any) => p.id)) + 1 : 1,
     paymentNo: `PAY-${String(count).padStart(4, "0")}`,
     type: type || "Receive",
     partnerName: partnerName || "Partner",
@@ -25,9 +25,8 @@ router.post("/payments", (req, res) => {
     status: "Confirmed"
   };
 
-  // If docId matches a customer invoice or vendor bill, update its paidAmount and status
   if (docId) {
-    const inv = memoryStore.customerInvoices.find(i => i.invoiceId === docId || i.id === Number(docId));
+    const inv = memoryStore.customerInvoices.find((i: any) => i.invoiceId === docId || i.id === Number(docId));
     if (inv) {
       const currentPaid = parseFloat(inv.paidAmount || "0");
       const total = parseFloat(inv.totalAmount || "0");
@@ -40,7 +39,7 @@ router.post("/payments", (req, res) => {
       }
     }
 
-    const bill = memoryStore.vendorBills.find(b => b.billId === docId || b.id === Number(docId));
+    const bill = memoryStore.vendorBills.find((b: any) => b.billId === docId || b.id === Number(docId));
     if (bill) {
       const currentPaid = parseFloat(bill.paidAmount || "0");
       const total = parseFloat(bill.totalAmount || "0");
@@ -55,6 +54,7 @@ router.post("/payments", (req, res) => {
   }
 
   memoryStore.payments.unshift(newPayment);
+  saveStore();
   res.status(201).json({ success: true, payment: newPayment });
 });
 
