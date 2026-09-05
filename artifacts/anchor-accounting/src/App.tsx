@@ -7,7 +7,7 @@ import { Link, Route, Switch, Router as WouterRouter, useLocation } from 'wouter
 import { motion } from 'framer-motion';
 import {
   Activity, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUpRight, BarChart3, Bell, BookOpen,
-  BriefcaseBusiness, Calculator, Check, ChevronDown,
+  BriefcaseBusiness, Calculator, Check, ChevronDown, ChevronRight, Clock,
   CreditCard, Download, FileBarChart, FileText, Filter, HelpCircle, Home, Landmark,
   LayoutGrid, LifeBuoy, List, LogOut, MoreHorizontal, Package, PanelLeft,
   Plus, Printer, Receipt, Search, Settings, ShieldCheck, Sparkles, TrendingUp,
@@ -514,16 +514,60 @@ function Portal({ role, setRole }: { role?: Role; setRole?: (r: Role) => void })
         </div>}
       </div>
     </header>
+    
     <main className="portal-main-grid">
       <div className="portal-content">
-        <div className="eyebrow">CUSTOMER PORTAL</div>
-        <h1>Your account, in one place.</h1>
-        <p className="portal-lede">Hello Mara. Here is the current view of your account with Hearth & Form Studio.</p>
+        <div className="portal-header-band">
+          <div>
+            <div className="eyebrow">CUSTOMER PORTAL</div>
+            <h1>Your account, in one place.</h1>
+            <p className="portal-lede">Hello Mara. Here is the current view of your account with Hearth & Form Studio.</p>
+          </div>
+          <div className="portal-client-badge">
+            <span className="avatar avatar-medium">HF</span>
+            <div>
+              <b>Hearth & Form Studio</b>
+              <small>Client Account · ID: ACC-88421</small>
+            </div>
+          </div>
+        </div>
         
-        <div className="portal-summary">
-          <div><span>Open balance</span><strong>$14,400.00</strong></div>
-          <div><span>Next due</span><strong>Apr 09, 2026</strong></div>
-          <div><span>Account status</span><strong className="green-text">In good standing</strong></div>
+        <div className="portal-summary-grid">
+          <div className="portal-summary-card">
+            <div className="summary-card-head">
+              <span>Open balance</span>
+              <CreditCard size={17}/>
+            </div>
+            <strong>$14,400.00</strong>
+            <small>2 unpaid invoices</small>
+          </div>
+
+          <div className="portal-summary-card">
+            <div className="summary-card-head">
+              <span>Next due</span>
+              <Clock size={17}/>
+            </div>
+            <strong>Apr 09, 2026</strong>
+            <small>INV/2026/0010 ($9,600.00)</small>
+          </div>
+
+          <div className="portal-summary-card">
+            <div className="summary-card-head">
+              <span>Total Invoiced</span>
+              <Receipt size={17}/>
+            </div>
+            <strong>$34,000.00</strong>
+            <small>5 invoices recorded</small>
+          </div>
+
+          <div className="portal-summary-card">
+            <div className="summary-card-head">
+              <span>Account status</span>
+              <ShieldCheck size={17}/>
+            </div>
+            <strong className="green-text">In good standing</strong>
+            <small>Verified client account</small>
+          </div>
         </div>
         
         <div className="portal-tabs">
@@ -533,12 +577,25 @@ function Portal({ role, setRole }: { role?: Role; setRole?: (r: Role) => void })
 
         {tab === 'invoices' ? (
           <div className="portal-table">
-            <div className="portal-table-head"><span>Invoice</span><span>Invoice date</span><span>Due date</span><span>Amount due</span><span>Status</span><span/></div>
+            <div className="portal-table-head">
+              <span/>
+              <span>Invoice</span>
+              <span>Invoice date</span>
+              <span>Due date</span>
+              <span>Amount due</span>
+              <span>Status</span>
+              <span/>
+            </div>
             {rows.map(r=><div className="portal-row" key={r.id} data-testid={`portal-invoice-${r.id}`}>
-              <div><b>{r.id}</b><small>{r.no}</small></div>
-              <span>{r.date}</span><span>{r.due}</span>
+              <ChevronRight size={14} className="row-chevron"/>
+              <div>
+                <b>{r.id}</b>
+                <small className="ref-code">{r.no}</small>
+              </div>
+              <span>{r.date}</span>
+              <span>{r.due}</span>
               <strong>{r.status==='Paid' ? '$0.00' : r.total}</strong>
-              <StatusPill status={r.status}/>
+              <div className="status-pill-wrap"><StatusPill status={r.status}/></div>
               <div className="portal-row-actions">
                 <button className="icon-btn" title="Download PDF"><Download size={15}/></button>
                 <Button variant={r.status==='Paid'?'ghost':'primary'} className="mini-btn" onClick={()=>setRows(rows.map(x=>x.id===r.id?{...x,status:'Paid',paid:x.total}:x))} testId={`button-portal-pay-${r.id}`}>{r.status==='Paid'?'Paid':'Pay now'}</Button>
@@ -547,9 +604,33 @@ function Portal({ role, setRole }: { role?: Role; setRole?: (r: Role) => void })
           </div>
         ) : (
           <div className="portal-table">
-            <div className="portal-table-head"><span>Payment Date</span><span>Reference</span><span>Method</span><span>Amount</span><span/></div>
-            <div className="portal-row"><span>Mar 12, 2026</span><span>INV-0032</span><span>Credit Card (...4242)</span><strong>$2,400.00</strong><StatusPill status="Confirmed"/></div>
-            <div className="portal-row"><span>Feb 10, 2026</span><span>INV-0028</span><span>ACH Transfer</span><strong>$4,800.00</strong><StatusPill status="Confirmed"/></div>
+            <div className="portal-table-head">
+              <span/>
+              <span>Payment Date</span>
+              <span>Reference</span>
+              <span>Method</span>
+              <span>Amount</span>
+              <span>Status</span>
+              <span/>
+            </div>
+            <div className="portal-row">
+              <ChevronRight size={14} className="row-chevron"/>
+              <span>Mar 12, 2026</span>
+              <span>INV-0032</span>
+              <span>Credit Card (...4242)</span>
+              <strong>$2,400.00</strong>
+              <div className="status-pill-wrap"><StatusPill status="Confirmed"/></div>
+              <div className="portal-row-actions"><button className="icon-btn" title="Download Receipt"><Download size={15}/></button></div>
+            </div>
+            <div className="portal-row">
+              <ChevronRight size={14} className="row-chevron"/>
+              <span>Feb 10, 2026</span>
+              <span>INV-0028</span>
+              <span>ACH Transfer</span>
+              <strong>$4,800.00</strong>
+              <div className="status-pill-wrap"><StatusPill status="Confirmed"/></div>
+              <div className="portal-row-actions"><button className="icon-btn" title="Download Receipt"><Download size={15}/></button></div>
+            </div>
           </div>
         )}
         <div className="portal-note"><ShieldCheck size={16}/><span><b>Payments are secure.</b> Your payment is recorded directly to the workspace ledger.</span></div>
@@ -558,13 +639,32 @@ function Portal({ role, setRole }: { role?: Role; setRole?: (r: Role) => void })
       <aside className="portal-sidebar">
         <div className="sidebar-card">
           <h3>Billing Information</h3>
-          <p>Mara Chen<br/>Hearth & Form Studio<br/>123 Main St, Suite 400<br/>New York, NY 10001</p>
+          <p>
+            <strong>Mara Chen</strong><br/>
+            Hearth & Form Studio<br/>
+            123 Main St, Suite 400<br/>
+            New York, NY 10001<br/>
+            <small style={{ color: '#8a7b6c', display: 'block', marginTop: '6px' }}>Tax ID: US-9842104</small>
+          </p>
           <button className="text-link mt-2">Update details</button>
         </div>
+
+        <div className="sidebar-card">
+          <h3>Saved Payment Methods</h3>
+          <div className="payment-method-row" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '8px', fontSize: '11px', color: 'var(--ink)' }}>
+            <CreditCard size={18} style={{ color: 'var(--cocoa)' }}/>
+            <div>
+              <b>Visa ending in 4242</b>
+              <small style={{ display: 'block', color: '#8c7e70', fontSize: '9px' }}>Expires 08/28 · Default method</small>
+            </div>
+          </div>
+          <button className="text-link mt-2" style={{ fontSize: '10px' }}>+ Add payment method</button>
+        </div>
+
         <div className="sidebar-card">
           <h3>Contact Accountant</h3>
           <form className="contact-form" onSubmit={e => {e.preventDefault(); alert("Message sent");}}>
-            <textarea placeholder="How can we help?" rows={3}/>
+            <textarea placeholder="Ask a question about an invoice or payment..." rows={3}/>
             <Button type="submit" className="w-full">Send Message</Button>
           </form>
         </div>
